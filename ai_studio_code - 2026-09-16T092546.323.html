@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0f172a">
+    <title>Organizador de Deudas</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --surface-color: #1e293b;
+            --primary-color: #3b82f6;
+            --secondary-color: #10b981;
+            --danger-color: #ef4444;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border-radius: 16px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Header */
+        header {
+            padding: 20px;
+            text-align: center;
+            background-color: var(--surface-color);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            z-index: 10;
+        }
+        header h1 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+
+        /* Main Content */
+        main {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            padding-bottom: 80px;
+        }
+
+        /* Tabs */
+        .tab-content { display: none; animation: fadeIn 0.3s ease; }
+        .tab-content.active { display: block; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Cards & Containers */
+        .card {
+            background-color: var(--surface-color);
+            border-radius: var(--border-radius);
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .flex-between {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* Typography */
+        h2 { font-size: 1.1rem; margin-bottom: 15px; color: var(--text-main); }
+        .text-muted { color: var(--text-muted); font-size: 0.85rem; }
+        .amount { font-size: 1.8rem; font-weight: 700; color: var(--secondary-color); }
+        
+        /* Forms & Inputs */
+        label { display: block; margin-bottom: 5px; font-size: 0.9rem; color: var(--text-muted); }
+        input, select {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 15px;
+            border-radius: 8px;
+            border: 1px solid #334155;
+            background-color: #0f172a;
+            color: white;
+            font-size: 1rem;
+            outline: none;
+        }
+        input:focus, select:focus { border-color: var(--primary-color); }
+
+        /* Buttons */
+        button {
+            width: 100%;
+            padding: 14px;
+            border-radius: 8px;
+            border: none;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        button:active { opacity: 0.8; }
+        .btn-primary { background-color: var(--primary-color); color: white; }
+        .btn-secondary { background-color: var(--secondary-color); color: white; }
+        .btn-danger { background-color: var(--danger-color); color: white; margin-top: 10px;}
+        .btn-small { width: auto; padding: 8px 12px; font-size: 0.85rem; }
+
+        /* Progress Bar */
+        .progress-bg {
+            width: 100%;
+            height: 8px;
+            background-color: #334155;
+            border-radius: 4px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background-color: var(--secondary-color);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+
+        /* Bottom Navigation */
+        nav {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            background-color: var(--surface-color);
+            display: flex;
+            justify-content: space-around;
+            padding: 15px 0;
+            box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        .nav-item {
+            color: var(--text-muted);
+            text-align: center;
+            font-size: 0.8rem;
+            cursor: pointer;
+            flex: 1;
+        }
+        .nav-item.active { color: var(--primary-color); }
+        .nav-icon { font-size: 1.5rem; display: block; margin-bottom: 4px; }
+
+        /* AI Chat */
+        .ai-message {
+            background-color: #1e293b;
+            border-left: 4px solid var(--primary-color);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            line-height: 1.5;
+            font-size: 0.95rem;
+        }
+
+        /* Modals */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            background-color: var(--surface-color);
+            width: 90%;
+            max-width: 400px;
+            border-radius: var(--border-radius);
+            padding: 20px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Organizador de Deudas</h1>
+    </header>
+
+    <main>
+        <!-- TAB: RESUMEN -->
+        <section id="tab-resumen" class="tab-content active">
+            <div class="card">
+                <h2>Mi Billetera / Ingresos</h2>
+                <div class="flex-between" style="margin-bottom: 15px;">
+                    <span class="text-muted">Saldo Disponible:</span>
+                    <span id="current-balance" style="font-size: 1.5rem; font-weight: bold; color: var(--secondary-color);">$0.00</span>
+                </div>
+                <label>Monto cobrado o a cobrar</label>
+                <input type="number" id="income-amount" placeholder="0.00">
+                <label>Fecha estimada de pago</label>
+                <input type="date" id="income-date">
+                <button class="btn-primary" onclick="registerIncome()">Registrar Ingreso</button>
+                <p class="text-muted" id="expected-income-text" style="margin-top: 10px; font-size: 0.8rem;"></p>
+            </div>
+
+            <div class="card">
+                <h2>Configuración de Ingresos</h2>
+                <label>¿Cada cuánto cobras?</label>
+                <select id="income-type" onchange="saveSettings()">
+                    <option value="weekly">Semanal</option>
+                    <option value="monthly">Mensual</option>
+                </select>
+            </div>
+
+            <div class="card">
+                <h2>Resumen Global</h2>
+                <div class="flex-between" style="margin-bottom: 10px;">
+                    <span class="text-muted">Total Deudas:</span>
+                    <span id="total-debt" style="font-weight: bold;">$0.00</span>
+                </div>
+                <div class="flex-between">
+                    <span class="text-muted">Total Separado:</span>
+                    <span id="total-saved" style="color: var(--secondary-color); font-weight: bold;">$0.00</span>
+                </div>
+            </div>
+
+            <div class="card" style="border: 1px solid var(--primary-color);">
+                <h2>Meta de Ahorro <span id="meta-period">Semanal</span></h2>
+                <p class="text-muted" style="margin-bottom: 10px;">Lo que debes separar para pagar a tiempo:</p>
+                <div class="amount" id="weekly-goal">$0.00</div>
+            </div>
+        </section>
+
+        <!-- TAB: DEUDAS -->
+        <section id="tab-deudas" class="tab-content">
+            <button class="btn-primary" onclick="openModal('modal-add-debt')" style="margin-bottom: 20px;">+ Agregar Nueva Deuda</button>
+            <div id="debts-list">
+                <!-- Las deudas se renderizan aquí -->
+            </div>
+        </section>
+
+        <!-- TAB: IA -->
+        <section id="tab-ia" class="tab-content">
+            <div class="card">
+                <h2>Asistente Financiero IA</h2>
+                <p class="text-muted" style="margin-bottom: 15px;">Analizo tus deudas y fechas para darte la mejor estrategia de pago.</p>
+                <button class="btn-primary" onclick="generateAIAdvice()">Generar Estrategia Actualizada</button>
+            </div>
+            <div id="ai-chat-container">
+                <div class="ai-message">
+                    ¡Hola! Soy tu asistente inteligente. Agrega tus deudas y presiona el botón para que calcule tu plan de pagos ideal.
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- NAVEGACIÓN INFERIOR -->
+    <nav>
+        <div class="nav-item active" onclick="switchTab('resumen', this)">
+            <span class="nav-icon">📊</span>
+            Resumen
+        </div>
+        <div class="nav-item" onclick="switchTab('deudas', this)">
+            <span class="nav-icon">💳</span>
+            Deudas
+        </div>
+        <div class="nav-item" onclick="switchTab('ia', this)">
+            <span class="nav-icon">🤖</span>
+            Asistente IA
+        </div>
+    </nav>
+
+    <!-- MODAL: AGREGAR DEUDA -->
+    <div class="modal-overlay" id="modal-add-debt">
+        <div class="modal">
+            <h2>Nueva Deuda / Gasto</h2>
+            <label>Entidad o Motivo</label>
+            <input type="text" id="debt-name" placeholder="Ej. Banco, Tarjeta, Alquiler">
+            
+            <label>Monto a Pagar (por mes)</label>
+            <input type="number" id="debt-amount" placeholder="0.00">
+            
+            <label>Fecha Límite de Pago</label>
+            <input type="date" id="debt-date">
+
+            <label>Cuotas / Meses a pagar</label>
+            <input type="number" id="debt-installments" placeholder="1" value="1">
+            
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button class="btn-secondary" onclick="closeModal('modal-add-debt')" style="background-color: #475569;">Cancelar</button>
+                <button class="btn-primary" onclick="addDebt()">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: SEPARAR DINERO -->
+    <div class="modal-overlay" id="modal-add-funds">
+        <div class="modal">
+            <h2>Separar Dinero</h2>
+            <p class="text-muted" id="fund-debt-name" style="margin-bottom: 15px;"></p>
+            
+            <label>Monto a separar hoy</label>
+            <input type="number" id="fund-amount" placeholder="0.00">
+            <input type="hidden" id="fund-debt-id">
+            
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button class="btn-secondary" onclick="closeModal('modal-add-funds')" style="background-color: #475569;">Cancelar</button>
+                <button class="btn-secondary" onclick="addFunds()">Abonar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- ESTADO DE LA APLICACIÓN ---
+        let debts = JSON.parse(localStorage.getItem('debts')) || [];
+        let incomeType = localStorage.getItem('incomeType') || 'weekly';
+        let balance = parseFloat(localStorage.getItem('balance')) || 0;
+        let expectedIncomeAmount = parseFloat(localStorage.getItem('expectedIncomeAmount')) || 0;
+        let expectedIncomeDate = localStorage.getItem('expectedIncomeDate') || '';
+
+        // --- INICIALIZACIÓN ---
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('income-type').value = incomeType;
+            updateUI();
+            injectPWAManifest();
+        });
+
+        // --- NAVEGACIÓN ---
+        function switchTab(tabId, element) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
+            
+            document.getElementById(`tab-${tabId}`).classList.add('active');
+            element.classList.add('active');
+        }
+
+        // --- MODALES ---
+        function openModal(id) { document.getElementById(id).classList.add('active'); }
+        function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+        // --- LÓGICA DE INGRESOS ---
+        function registerIncome() {
+            const amount = parseFloat(document.getElementById('income-amount').value);
+            const date = document.getElementById('income-date').value;
+            
+            if (isNaN(amount) || !date) {
+                alert("Por favor completa el monto y la fecha.");
+                return;
+            }
+            
+            const today = new Date().toISOString().split('T')[0];
+            if (date <= today) {
+                balance += amount;
+                expectedIncomeAmount = 0;
+                expectedIncomeDate = '';
+                alert("Ingreso sumado a tu saldo disponible.");
+            } else {
+                expectedIncomeAmount = amount;
+                expectedIncomeDate = date;
+                alert("Ingreso futuro registrado. Se sumará automáticamente en la fecha indicada.");
+            }
+            
+            saveWalletData();
+            document.getElementById('income-amount').value = '';
+            document.getElementById('income-date').value = '';
+            updateUI();
+        }
+
+        function saveWalletData() {
+            localStorage.setItem('balance', balance);
+            localStorage.setItem('expectedIncomeAmount', expectedIncomeAmount);
+            localStorage.setItem('expectedIncomeDate', expectedIncomeDate);
+        }
+
+        // --- LÓGICA DE DEUDAS ---
+        function saveSettings() {
+            incomeType = document.getElementById('income-type').value;
+            localStorage.setItem('incomeType', incomeType);
+            updateUI();
+        }
+
+        function addDebt() {
+            const name = document.getElementById('debt-name').value;
+            const amount = parseFloat(document.getElementById('debt-amount').value);
+            const date = document.getElementById('debt-date').value;
+            const installments = parseInt(document.getElementById('debt-installments').value) || 1;
+
+            if (!name || isNaN(amount) || !date) {
+                alert("Por favor completa todos los campos.");
+                return;
+            }
+
+            const newDebt = {
+                id: Date.now().toString(),
+                name,
+                amount,
+                saved: 0,
+                dueDate: date,
+                installments: installments
+            };
+
+            debts.push(newDebt);
+            saveData();
+            closeModal('modal-add-debt');
+            
+            // Limpiar inputs
+            document.getElementById('debt-name').value = '';
+            document.getElementById('debt-amount').value = '';
+            document.getElementById('debt-date').value = '';
+            document.getElementById('debt-installments').value = '1';
+            
+            updateUI();
+        }
+
+        function deleteDebt(id) {
+            if(confirm("¿Estás seguro de eliminar esta deuda?")) {
+                debts = debts.filter(d => d.id !== id);
+                saveData();
+                updateUI();
+            }
+        }
+
+        function nextInstallment(id) {
+            const debtIndex = debts.findIndex(d => d.id === id);
+            if (debtIndex > -1) {
+                debts[debtIndex].installments -= 1;
+                debts[debtIndex].saved = 0;
+                
+                // Avanzar la fecha 1 mes
+                const oldDate = new Date(debts[debtIndex].dueDate + 'T00:00:00');
+                oldDate.setMonth(oldDate.getMonth() + 1);
+                debts[debtIndex].dueDate = oldDate.toISOString().split('T')[0];
+                
+                saveData();
+                updateUI();
+            }
+        }
+
+        function openFundModal(id, name) {
+            document.getElementById('fund-debt-id').value = id;
+            document.getElementById('fund-debt-name').innerText = `Destino: ${name}`;
+            document.getElementById('fund-amount').value = '';
+            openModal('modal-add-funds');
+        }
+
+        function addFunds() {
+            const id = document.getElementById('fund-debt-id').value;
+            const amount = parseFloat(document.getElementById('fund-amount').value);
+
+            if (isNaN(amount) || amount <= 0) return;
+
+            if (amount > balance) {
+                if(!confirm("El monto a separar es mayor a tu Saldo Disponible. ¿Deseas continuar de todos modos?")) {
+                    return;
+                }
+            }
+
+            const debtIndex = debts.findIndex(d => d.id === id);
+            if (debtIndex > -1) {
+                debts[debtIndex].saved += amount;
+                if (debts[debtIndex].saved > debts[debtIndex].amount) {
+                    debts[debtIndex].saved = debts[debtIndex].amount;
+                }
+                
+                // Descontar del saldo disponible
+                balance -= amount;
+                if(balance < 0) balance = 0;
+                saveWalletData();
+
+                saveData();
+                closeModal('modal-add-funds');
+                updateUI();
+            }
+        }
+
+        function saveData() {
+            localStorage.setItem('debts', JSON.stringify(debts));
+        }
+
+        // --- ACTUALIZACIÓN DE INTERFAZ ---
+        function updateUI() {
+            // Verificar si un ingreso esperado ya se cumplió
+            const todayStr = new Date().toISOString().split('T')[0];
+            if (expectedIncomeAmount > 0 && expectedIncomeDate <= todayStr) {
+                balance += expectedIncomeAmount;
+                expectedIncomeAmount = 0;
+                expectedIncomeDate = '';
+                saveWalletData();
+            }
+
+            renderDebts();
+            calculateSummary();
+        }
+
+        function renderDebts() {
+            const container = document.getElementById('debts-list');
+            container.innerHTML = '';
+
+            if (debts.length === 0) {
+                container.innerHTML = '<p class="text-muted" style="text-align:center;">No tienes deudas registradas. ¡Genial!</p>';
+                return;
+            }
+
+            // Ordenar por fecha más próxima
+            const sortedDebts = [...debts].sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+
+            sortedDebts.forEach(debt => {
+                const percentage = Math.min((debt.saved / debt.amount) * 100, 100);
+                const isPaid = percentage === 100;
+                
+                // Formatear fecha
+                const dateObj = new Date(debt.dueDate + 'T00:00:00');
+                const dateStr = dateObj.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
+                
+                const installmentsText = debt.installments > 1 ? `<span class="text-muted" style="font-size: 0.8rem; display: block;">Cuotas restantes: ${debt.installments}</span>` : '';
+
+                container.innerHTML += `
+                    <div class="card" style="${isPaid ? 'opacity: 0.7; border-left: 4px solid var(--secondary-color);' : 'border-left: 4px solid var(--danger-color);'}">
+                        <div class="flex-between">
+                            <div>
+                                <h3 style="font-size: 1rem;">${debt.name}</h3>
+                                ${installmentsText}
+                            </div>
+                            <span class="text-muted">Vence: ${dateStr}</span>
+                        </div>
+                        <div class="flex-between" style="margin-top: 10px;">
+                            <span style="font-weight: bold;">$${debt.saved.toFixed(2)} / $${debt.amount.toFixed(2)}</span>
+                            <span class="text-muted">${percentage.toFixed(0)}%</span>
+                        </div>
+                        <div class="progress-bg">
+                            <div class="progress-fill" style="width: ${percentage}%"></div>
+                        </div>
+                        ${!isPaid ? `
+                        <div class="flex-between" style="margin-top: 15px; gap: 10px;">
+                            <button class="btn-primary btn-small" onclick="openFundModal('${debt.id}', '${debt.name}')">Separar Dinero</button>
+                            <button class="btn-danger btn-small" onclick="deleteDebt('${debt.id}')">Borrar</button>
+                        </div>
+                        ` : (debt.installments > 1 ? `
+                        <div class="flex-between" style="margin-top: 15px; gap: 10px;">
+                            <span style="color: var(--secondary-color); font-weight: bold; font-size: 0.9rem;">Mes pagado 🎉</span>
+                            <button class="btn-primary btn-small" onclick="nextInstallment('${debt.id}')">Siguiente Mes</button>
+                        </div>
+                        ` : `
+                        <div class="flex-between" style="margin-top: 15px;">
+                            <span style="color: var(--secondary-color); font-weight: bold;">¡Completado! 🎉</span>
+                            <button class="btn-danger btn-small" onclick="deleteDebt('${debt.id}')">Borrar</button>
+                        </div>
+                        `)}
+                    </div>
+                `;
+            });
+        }
+
+        function calculateSummary() {
+            // Actualizar Billetera
+            document.getElementById('current-balance').innerText = `$${balance.toFixed(2)}`;
+            const expectedText = document.getElementById('expected-income-text');
+            if (expectedIncomeAmount > 0) {
+                const dateObj = new Date(expectedIncomeDate + 'T00:00:00');
+                const dateStr = dateObj.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
+                expectedText.innerText = `Esperas cobrar $${expectedIncomeAmount.toFixed(2)} el ${dateStr}.`;
+            } else {
+                expectedText.innerText = '';
+            }
+
+            let totalDebt = 0;
+            let totalSaved = 0;
+            let weeklyGoal = 0;
+            const today = new Date();
+
+            debts.forEach(debt => {
+                totalDebt += debt.amount;
+                totalSaved += debt.saved;
+
+                const remaining = debt.amount - debt.saved;
+                if (remaining > 0) {
+                    const dueDate = new Date(debt.dueDate + 'T00:00:00');
+                    const daysLeft = Math.max((dueDate - today) / (1000 * 60 * 60 * 24), 1); // Mínimo 1 día para evitar infinito
+                    
+                    let weeksLeft = daysLeft / 7;
+                    if (weeksLeft < 1) weeksLeft = 1; // Si falta menos de una semana, hay que juntarlo esta semana
+
+                    weeklyGoal += (remaining / weeksLeft);
+                }
+            });
+
+            document.getElementById('total-debt').innerText = `$${totalDebt.toFixed(2)}`;
+            document.getElementById('total-saved').innerText = `$${totalSaved.toFixed(2)}`;
+
+            // Ajustar meta según si cobra semanal o mensual
+            const metaPeriod = document.getElementById('meta-period');
+            const goalElement = document.getElementById('weekly-goal');
+            
+            if (incomeType === 'monthly') {
+                metaPeriod.innerText = 'Mensual';
+                // Si cobra mensual, multiplicamos la meta semanal por 4 (aprox)
+                goalElement.innerText = `$${(weeklyGoal * 4).toFixed(2)}`;
+            } else {
+                metaPeriod.innerText = 'Semanal';
+                goalElement.innerText = `$${weeklyGoal.toFixed(2)}`;
+            }
+        }
+
+        // --- MOTOR DE INTELIGENCIA ARTIFICIAL (Simulado y Actualizable) ---
+        function generateAIAdvice() {
+            const chat = document.getElementById('ai-chat-container');
+            chat.innerHTML = '<div class="ai-message">Analizando tus finanzas con IA... ⏳</div>';
+
+            setTimeout(() => {
+                if (debts.length === 0) {
+                    chat.innerHTML = `<div class="ai-message">No tienes deudas activas. ¡Excelente trabajo! Te recomiendo empezar a ahorrar ese dinero para un fondo de emergencia.</div>`;
+                    return;
+                }
+
+                const today = new Date();
+                let urgentDebt = null;
+                let minDays = Infinity;
+                let totalRemaining = 0;
+
+                debts.forEach(debt => {
+                    const remaining = debt.amount - debt.saved;
+                    if (remaining > 0) {
+                        totalRemaining += remaining;
+                        const dueDate = new Date(debt.dueDate + 'T00:00:00');
+                        const daysLeft = (dueDate - today) / (1000 * 60 * 60 * 24);
+                        if (daysLeft < minDays) {
+                            minDays = daysLeft;
+                            urgentDebt = debt;
+                        }
+                    }
+                });
+
+                if (totalRemaining === 0) {
+                    chat.innerHTML = `<div class="ai-message">¡Felicidades! Has separado todo el dinero necesario para tus deudas de este mes. Ya puedes realizar los pagos a las entidades.</div>`;
+                    return;
+                }
+
+                let advice = `He analizado tu perfil. Tienes un saldo pendiente total de <b>$${totalRemaining.toFixed(2)}</b> para este periodo.<br><br>`;
+                
+                if (urgentDebt) {
+                    const days = Math.ceil(minDays);
+                    if (days < 0) {
+                        advice += `⚠️ <b>¡ALERTA!</b> Tu deuda con <b>${urgentDebt.name}</b> está vencida hace ${Math.abs(days)} días. Prioriza este pago inmediatamente para evitar intereses moratorios.<br><br>`;
+                    } else if (days <= 7) {
+                        advice += `🔥 <b>Prioridad Alta:</b> Tu pago a <b>${urgentDebt.name}</b> vence en solo ${days} días. Enfoca tus ingresos de esta semana en cubrir los $${(urgentDebt.amount - urgentDebt.saved).toFixed(2)} que faltan.<br><br>`;
+                    } else {
+                        advice += `✅ <b>Vas por buen camino.</b> Tu deuda más próxima es <b>${urgentDebt.name}</b> en ${days} días.<br><br>`;
+                    }
+                }
+
+                if (incomeType === 'weekly') {
+                    advice += `💡 <b>Estrategia:</b> Como cobras semanalmente, te sugiero que apenas recibas tu dinero, separes la "Meta Semanal" que calculé en tu resumen antes de gastar en cualquier otra cosa.`;
+                } else {
+                    advice += `💡 <b>Estrategia:</b> Como cobras mensualmente, separa el monto total de tu "Meta Mensual" el mismo día que te pagan. Guárdalo en una cuenta separada para que no lo gastes por error.`;
+                }
+
+                chat.innerHTML = `<div class="ai-message">${advice}</div>`;
+            }, 1500);
+        }
+
+        // --- PWA SETUP (Hacer la app instalable desde un solo archivo) ---
+        function injectPWAManifest() {
+            const manifest = {
+                name: "Organizador de Deudas",
+                short_name: "Deudas",
+                description: "Organiza tus deudas y separa dinero inteligentemente.",
+                start_url: ".",
+                display: "standalone",
+                background_color: "#0f172a",
+                theme_color: "#0f172a",
+                icons: [{
+                    src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%233b82f6'/%3E%3Ctext x='50' y='65' font-size='50' text-anchor='middle' fill='white'%3E%24%3C/text%3E%3C/svg%3E",
+                    sizes: "192x192",
+                    type: "image/svg+xml"
+                }]
+            };
+            const stringManifest = JSON.stringify(manifest);
+            const blob = new Blob([stringManifest], {type: 'application/json'});
+            const manifestURL = URL.createObjectURL(blob);
+            document.querySelector('head').insertAdjacentHTML('beforeend', `<link rel="manifest" href="${manifestURL}">`);
+        }
+    </script>
+</body>
+</html>
