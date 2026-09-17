@@ -1,0 +1,3511 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#f8fafc">
+    <meta name="description" content="Go! Scanner Pro v8.2 Plus - Escáner y auditoría de planillas PWA de alto rendimiento">
+    <title>Go! Scanner Pro v8.2 Plus</title>
+    
+    <!-- PWA Manifest & Icons -->
+    <link rel="manifest" id="manifest-link">
+    <link rel="apple-touch-icon" id="apple-icon">
+    
+    <!-- Preconnect para mejorar tiempos de resolución DNS -->
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    
+    <!-- Librerías con defer para no bloquear el renderizado -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
+    
+    <style>
+        :root {
+            --primary: #0f172a; 
+            --primary-dark: #020617; 
+            --accent: #0ea5e9; 
+            --bg: #f1f5f9; 
+            --surface: #ffffff;
+            --text-main: #1e293b; 
+            --text-sec: #64748b; 
+            --danger: #be123c; 
+            --success: #0f766e; 
+            --border: #e2e8f0;
+            --bg-sec: #f8fafc;
+            --bg-danger: #fff1f2;
+            --border-danger: #fecdd3;
+            --bg-success: #f0fdf4;
+            --border-success: #bbf7d0;
+            --bg-info: #f0f9ff;
+            --border-info: #bae6fd;
+            --bg-warn: #fffbeb;
+            --border-warn: #fde68a;
+            --text-warn: #b45309; /* Naranja oscuro para modo claro */
+            --dock-bg: rgba(255, 255, 255, 0.85);
+            --fab-bg: #0f172a;
+            --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --radius: 20px;
+            --ios-ease: cubic-bezier(0.32, 0.72, 0, 1);
+        }
+
+        .dark-mode {
+            --primary: #f8fafc; 
+            --primary-dark: #ffffff; 
+            --accent: #38bdf8; 
+            --bg: #000000; /* AMOLED Pure Black */
+            --surface: #000000; /* AMOLED Pure Black */
+            --text-main: #f1f5f9; 
+            --text-sec: #94a3b8; 
+            --danger: #fb7185; 
+            --success: #2dd4bf; 
+            --border: #27272a;
+            --bg-sec: #09090b;
+            --bg-danger: #3f0f1c;
+            --border-danger: #881337;
+            --bg-success: #022c22;
+            --border-success: #065f46;
+            --bg-info: #082f49;
+            --border-info: #0369a1;
+            --bg-warn: #422006;
+            --border-warn: #b45309;
+            --text-warn: #fde68a; /* Amarillo claro para modo oscuro */
+            --dock-bg: rgba(0, 0, 0, 0.85);
+            --fab-bg: #1e293b;
+            --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
+        }
+
+        * { 
+            box-sizing: border-box; 
+            -webkit-tap-highlight-color: transparent; 
+            -webkit-user-select: none; 
+            user-select: none;
+            -webkit-touch-callout: none;
+        }
+        
+        input, textarea {
+            -webkit-user-select: auto; 
+            user-select: auto;
+            -webkit-touch-callout: default;
+        }
+        
+        button, a, .card-item, .dock-btn, .scan-fab {
+            touch-action: manipulation; /* Previene delay de 300ms en móviles */
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased;
+            overscroll-behavior-y: none;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        /* --- HEADER & DASHBOARD --- */
+        .top-bar {
+            padding: 15px 20px;
+            background: var(--surface);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            z-index: 10;
+            border-bottom: 1px solid var(--border);
+            transition: background-color 0.3s, border-color 0.3s;
+            position: relative;
+        }
+        .app-title { font-size: 20px; font-weight: 800; color: var(--primary); display: flex; align-items: center; gap: 5px; letter-spacing: -0.5px; }
+        .app-title span { color: var(--accent); }
+        .date-display { font-size: 11px; font-weight: 700; color: var(--text-sec); background: var(--border); color: var(--text-main); padding: 4px 10px; border-radius: 6px; letter-spacing: 0.5px; transition: background-color 0.3s, color 0.3s; }
+
+        .dashboard {
+            padding: 15px 20px;
+            background: var(--surface);
+            margin-bottom: 1px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            transition: background-color 0.3s, border-color 0.3s;
+        }
+        .stat-box { text-align: center; flex: 1; }
+        .stat-value { font-size: 24px; font-weight: 900; color: var(--primary); line-height: 1.2; letter-spacing: -1px; }
+        .stat-label { font-size: 10px; color: var(--text-sec); text-transform: uppercase; letter-spacing: 1px; font-weight: 700; }
+        .divider { width: 1px; height: 30px; background: var(--border); margin: 0 10px; transition: background-color 0.3s; }
+
+        /* --- LISTA PRINCIPAL --- */
+        .main-scroll-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px 20px 140px 20px; 
+            scroll-behavior: smooth;
+        }
+        
+        .empty-state {
+            text-align: center;
+            margin-top: 50px;
+            color: var(--text-sec);
+            opacity: 0.7;
+        }
+
+        .card-item {
+            background: var(--surface);
+            border-radius: var(--radius);
+            padding: 16px;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            transition: transform 0.3s var(--ios-ease), opacity 0.3s, box-shadow 0.3s, background-color 0.3s;
+            border: 1px solid transparent;
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+        }
+        .card-item:active { transform: scale(0.96) !important; background: var(--bg-sec); }
+        .card-item.entering { animation: slideIn 0.4s var(--ios-ease) forwards; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        .card-info { display: flex; flex-direction: column; gap: 4px; }
+        .code-text { font-size: 16px; font-family: monospace; font-weight: 700; color: var(--text-main); letter-spacing: 0.5px; }
+        .meta-text { font-size: 12px; color: var(--text-sec); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+        
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; transition: background-color 0.3s, color 0.3s, border-color 0.3s; }
+        .badge.pedido { background: var(--bg); color: var(--primary); border: 1px solid var(--border); }
+        .badge.caso { background: var(--bg-info); color: var(--accent); border: 1px solid var(--border-info); }
+        .badge.manual { background: var(--bg-sec); color: var(--text-sec); border: 1px solid var(--border); }
+
+        .btn-delete {
+            background: var(--bg-danger); color: var(--danger); border: none;
+            width: 36px; height: 36px; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; font-size: 16px; transition: 0.2s;
+        }
+        .btn-delete:active { transform: scale(0.9); background: var(--border-danger); }
+
+        .duplicate-alert {
+            background: var(--bg-danger); border: 1px solid var(--border-danger);
+            color: var(--danger); margin-bottom: 15px; border-radius: var(--radius);
+            padding: 12px; font-size: 13px; font-weight: 600;
+            display: flex; justify-content: space-between; align-items: center;
+            animation: popIn 0.3s; cursor: pointer; transition: background-color 0.3s, border-color 0.3s;
+        }
+        .card-item.repetido { border: 1px solid var(--danger); background: var(--bg-danger); }
+
+        /* --- ESTILOS ACORDEON DETALLES --- */
+        .detail-accordion {
+            cursor: pointer; transition: background 0.2s; margin-bottom: 0; z-index: 2;
+        }
+        .detail-accordion:active { background-color: var(--bg-sec); }
+        
+        .sub-list-container {
+            display: none; background: var(--bg-sec); margin: 0 0 15px 0;
+            border-radius: 0 0 16px 16px; padding: 5px 10px 10px 10px;
+            border: 1px solid var(--border); border-top: none;
+            animation: expandList 0.3s ease-out; transition: background-color 0.3s, border-color 0.3s;
+        }
+        @keyframes expandList { from { opacity:0; transform: translateY(-10px); } to { opacity:1; transform: translateY(0); } }
+
+        .sub-item-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 10px; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text-main);
+        }
+        .sub-item-row:last-child { border-bottom: none; }
+        
+        .btn-copy-mini {
+            background: var(--bg); color: var(--primary); border: 1px solid var(--border);
+            padding: 6px 12px; border-radius: 6px; font-size: 10px;
+            font-weight: 700; cursor: pointer; margin-left: 10px; transition: background-color 0.3s, color 0.3s;
+        }
+        .btn-copy-mini:active { background: var(--primary); color: var(--bg); }
+        
+        .price-tag-mini {
+            background: var(--bg-success); color: var(--success); padding: 4px 8px;
+            border-radius: 4px; font-size: 11px; font-weight: 700; border: 1px solid var(--border-success); transition: background-color 0.3s, border-color 0.3s;
+        }
+
+        /* --- BARRA DE ACCIONES INFERIOR --- */
+        .bottom-dock {
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            width: 90%; max-width: 400px;
+            background: var(--dock-bg); backdrop-filter: blur(20px); 
+            padding: 12px 20px; border-radius: 24px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            display: flex; align-items: center; justify-content: space-between;
+            z-index: 100; border: 1px solid rgba(0,0,0,0.1); transition: background-color 0.3s;
+        }
+
+        .dock-btn {
+            background: transparent; border: none;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            color: #8e8e93; font-size: 10px; font-weight: 600;
+            width: 60px; height: 50px; cursor: pointer; gap: 4px;
+            transition: all 0.2s var(--ios-ease);
+        }
+        .dock-btn svg { width: 24px; height: 24px; fill: currentColor; }
+        .dock-btn:active { transform: translateY(2px) scale(0.9); }
+
+        .scan-fab {
+            width: 60px; height: 60px;
+            background: var(--fab-bg);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+            color: white; border: none; cursor: pointer;
+            font-size: 24px; margin-top: -35px;
+            transition: transform 0.2s, box-shadow 0.2s, background-color 0.3s;
+        }
+        .scan-fab:active { transform: scale(0.9) translateY(2px); box-shadow: 0 0 5px rgba(0,0,0,0.2); }
+        .scan-fab.loading { animation: pulse 1.5s infinite; filter: grayscale(0.5); }
+        
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(15,23,42, 0.7); } 70% { box-shadow: 0 0 0 15px rgba(15,23,42, 0); } 100% { box-shadow: 0 0 0 0 rgba(15,23,42, 0); } }
+
+        /* --- MODAL / BOTTOM SHEET --- */
+        .sheet-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);
+            z-index: 200; opacity: 0; pointer-events: none; transition: opacity 0.3s;
+        }
+        .sheet-overlay.active { opacity: 1; pointer-events: auto; }
+
+        .bottom-sheet {
+            position: fixed; bottom: -100%; left: 0; width: 100%;
+            background: var(--bg-sec);
+            border-radius: 24px 24px 0 0;
+            padding: 25px;
+            box-shadow: 0 -5px 25px rgba(0,0,0,0.2);
+            z-index: 201;
+            transition: bottom 0.5s var(--ios-ease), background-color 0.3s;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .bottom-sheet.active { bottom: 0; }
+        
+        .sheet-handle { width: 40px; height: 4px; background: var(--text-sec); border-radius: 10px; margin: 0 auto 20px auto; opacity: 0.5; }
+        .input-group { margin-bottom: 15px; position: relative; }
+        .styled-input {
+            width: 100%; padding: 16px; border: none;
+            border-radius: 16px; font-size: 18px; text-align: center;
+            font-weight: bold; outline: none; transition: box-shadow 0.3s, background-color 0.3s, color 0.3s;
+            color: var(--text-main); background: var(--surface); font-family: monospace;
+            box-shadow: var(--shadow);
+        }
+        .btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px; padding-bottom: 10px; }
+        .btn-sheet {
+            padding: 16px; border-radius: 16px; border: none;
+            font-weight: 700; cursor: pointer; font-size: 14px; letter-spacing: 0.5px;
+            transition: transform 0.2s var(--ios-ease);
+        }
+        .btn-sheet:active { transform: scale(0.95); }
+        .btn-sheet.primary { background: var(--primary); color: var(--bg); }
+        .btn-sheet.secondary { background: #0284c7; color: white; }
+
+        /* --- DRAWER --- */
+        .drawer {
+            position: fixed; top: 0; left: -300px; width: 280px; height: 100%;
+            background: var(--bg-sec); z-index: 300;
+            box-shadow: 5px 0 25px rgba(0,0,0,0.1);
+            transition: left 0.5s var(--ios-ease), background-color 0.3s;
+            display: flex; flex-direction: column; 
+            padding: 15px 15px 10px 15px; 
+        }
+        .drawer.open { left: 0; }
+        .history-list { flex: 1; overflow-y: auto; margin-top: 5px; }
+        .history-item {
+            padding: 8px 12px; border-radius: 12px; margin-bottom: 6px;
+            background: var(--surface); display: flex; align-items: center;
+            justify-content: space-between; font-size: 13px;
+            border: 1px solid transparent; cursor: pointer;
+            transition: transform 0.2s var(--ios-ease), background 0.2s, border-color 0.3s;
+        }
+        .history-item:active { transform: scale(0.97); }
+        .history-item.active { background: var(--bg-info); border: 1px solid var(--border-info); box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+        .drawer-btn {
+            background: var(--surface); width: 100%;
+            padding: 10px; border-radius: 12px; border: none;
+            font-weight: 600; cursor: pointer; font-size: 13px; color: var(--text-main);
+            transition: transform 0.2s var(--ios-ease), background-color 0.3s;
+        }
+        .drawer-btn:active { transform: scale(0.95); }
+
+        /* --- EDIT MODAL (LONG PRESS) --- */
+        .edit-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15,23,42,0.6); backdrop-filter: blur(8px);
+            z-index: 1000; opacity: 0; pointer-events: none; 
+            transition: opacity 0.3s ease;
+            display: flex; align-items: center; justify-content: center;
+            padding: 20px;
+        }
+        .edit-overlay.active { opacity: 1; pointer-events: auto; }
+        .edit-modal {
+            background: var(--surface); width: 100%; max-width: 350px;
+            border-radius: 24px; padding: 24px;
+            transform: scale(0.85); opacity: 0;
+            transition: all 0.4s var(--ios-ease), background-color 0.3s;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+        }
+        .edit-overlay.active .edit-modal { transform: scale(1); opacity: 1; }
+
+        /* --- NOTIFICACIÓN --- */
+        #autosave-pill {
+            position: fixed; top: -60px; left: 50%; transform: translateX(-50%);
+            background: var(--success); color: white; padding: 10px 24px;
+            border-radius: 30px; font-size: 13px; font-weight: 600;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.15); z-index: 2000;
+            transition: top 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            display: flex; align-items: center; gap: 8px;
+        }
+        #autosave-pill.show { top: 40px; }
+
+        /* Modal Detalles Resumen */
+        .modal-fullscreen {
+            display: none; position: fixed; top:0; left:0; width:100%; height:100%;
+            background: var(--bg-sec); z-index: 400;
+            flex-direction: column; padding: 0;
+            overflow-y: auto; transition: background-color 0.3s;
+        }
+
+        /* Estilos Popup Meta */
+        .meta-popup { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1100; display: none; align-items: center; justify-content: center; background: rgba(15,23,42,0.85); backdrop-filter: blur(5px); }
+        .meta-card { background: var(--surface); border-radius: 24px; padding: 30px 20px; text-align: center; width: 90%; max-width: 350px; position: relative; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); transform: scale(0.8); opacity: 0; transition: all 0.4s var(--ios-ease), background-color 0.3s; z-index: 2; }
+        .meta-popup.show { display: flex; }
+        .meta-popup.show .meta-card { transform: scale(1); opacity: 1; }
+        .confetti-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; overflow: hidden; z-index: 1; display: none; }
+        .confetti { position: absolute; font-size: 28px; animation: fall linear infinite; top: -50px; }
+        
+        /* Animaciones para Textos y Botón Principal */
+        @keyframes pulseBtn { 0% { transform: scale(1); } 50% { transform: scale(1.02); } 100% { transform: scale(1); } }
+        @keyframes fall { 0% { transform: translateY(-50px) rotate(0deg); } 100% { transform: translateY(100vh) rotate(360deg); } }
+        
+        @keyframes pulseGlow {
+            0% { transform: scale(1); text-shadow: 0 0 10px rgba(20, 184, 166, 0.4); color: #0d9488; }
+            50% { transform: scale(1.08); text-shadow: 0 0 25px rgba(20, 184, 166, 0.9); color: #14b8a6; }
+            100% { transform: scale(1); text-shadow: 0 0 10px rgba(20, 184, 166, 0.4); color: #0d9488; }
+        }
+        .text-glow-success { animation: pulseGlow 1.5s infinite; }
+
+        /* Corrección Barra de Progreso Superior */
+        .progress-line {
+            position: fixed; top: 0; left: 0; height: 4px; background: var(--accent);
+            width: 0; z-index: 9999; transition: width 0.3s ease; opacity: 1;
+        }
+
+        /* Overlay Progreso Excel */
+        .excel-progress-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15,23,42,0.8); backdrop-filter: blur(10px);
+            z-index: 3000; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            opacity: 0; pointer-events: none; transition: opacity 0.4s ease;
+        }
+        .excel-progress-overlay.active { opacity: 1; pointer-events: auto; }
+        .ep-card {
+            background: var(--surface); padding: 30px; border-radius: 24px; width: 80%; max-width: 320px;
+            text-align: center; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+            transform: scale(0.9); transition: transform 0.4s var(--ios-ease), background-color 0.3s;
+        }
+        .excel-progress-overlay.active .ep-card { transform: scale(1); }
+        .ep-bar-bg {
+            width: 100%; height: 12px; background: var(--border); border-radius: 10px; margin: 20px 0; overflow: hidden;
+            position: relative; transition: background-color 0.3s;
+        }
+        .ep-bar-fill {
+            height: 100%; background: linear-gradient(90deg, #0ea5e9, #10b981); width: 0%;
+            border-radius: 10px; transition: width 0.2s ease-out;
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+        }
+        .ep-text { font-size: 24px; font-weight: 900; color: var(--text-main); font-family: monospace; transition: color 0.3s; }
+
+        /* Notch Dinámico Rediseñado */
+        .dynamic-notch {
+            position: fixed; top: -60px; left: 50%; transform: translateX(-50%);
+            background: #111111; color: white; padding: 6px 14px; border-radius: 20px;
+            display: flex; align-items: center; gap: 8px; z-index: 2500;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            transition: top 0.5s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.5s ease;
+            opacity: 0;
+            border: 1px solid #333;
+            white-space: nowrap;
+            height: 32px;
+        }
+        .dynamic-notch.visible { top: 10px; opacity: 1; }
+        .notch-label { font-size: 11px; color: #a1a1aa; font-weight: 500; }
+        .notch-amount { font-size: 12px; font-weight: 800; color: #34d399; }
+
+        /* Animación Tintineante */
+        @keyframes blinkText {
+            0%, 100% { color: #ea580c; text-shadow: 0 0 0px transparent; }
+            50% { color: #dc2626; text-shadow: 0 0 8px rgba(220, 38, 38, 0.4); }
+        }
+        .blink-text { animation: blinkText 1.5s infinite ease-in-out; color: var(--text-warn) !important; }
+
+        /* ==========================================
+           NUEVOS ESTILOS: UI Dinámica y Elegante
+           ========================================== */
+        .top-bar {
+            background: rgba(255, 255, 255, 0.85) !important;
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+        }
+        .dark-mode .top-bar {
+            background: rgba(0, 0, 0, 0.85) !important;
+        }
+        .bottom-dock {
+            background: rgba(255, 255, 255, 0.75) !important;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.3) !important;
+        }
+        .dark-mode .bottom-dock {
+            background: rgba(15, 23, 42, 0.75) !important;
+            border: 1px solid rgba(255,255,255,0.05) !important;
+        }
+        .card-item {
+            background: linear-gradient(145deg, var(--surface), var(--bg-sec)) !important;
+            border: 1px solid rgba(0,0,0,0.03) !important;
+        }
+        .dark-mode .card-item {
+            background: linear-gradient(145deg, var(--surface), #0a0a0a) !important;
+            border: 1px solid rgba(255,255,255,0.05) !important;
+        }
+        
+        /* Estilos del Banner de Promedio Diario */
+        .average-container {
+            margin: 12px 20px 0 20px;
+            border-radius: var(--radius);
+            background: var(--surface);
+            box-shadow: 0 10px 20px -5px rgba(0,0,0,0.05);
+            border: 1px solid var(--border);
+            overflow: hidden;
+            transition: all 0.4s var(--ios-ease);
+            position: relative;
+            z-index: 2;
+        }
+        .dark-mode .average-container {
+            box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.6);
+        }
+        .average-banner {
+            padding: 14px 20px;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            color: #ffffff;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            transition: background 0.4s var(--ios-ease);
+        }
+        .average-banner .avg-left { display: flex; align-items: center; gap: 10px; }
+        .average-banner .avg-icon { font-size: 20px; background: rgba(255,255,255,0.2); padding: 6px; border-radius: 10px; }
+        .average-banner .avg-text { font-size: 13px; font-weight: 700; letter-spacing: 0.5px; }
+        .average-banner .avg-value { font-size: 20px; font-weight: 900; letter-spacing: -0.5px; }
+
+        /* Search Bar Flotante */
+        .search-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.4); backdrop-filter: blur(5px);
+            z-index: 2000; opacity: 0; pointer-events: none; transition: opacity 0.3s;
+        }
+        .search-overlay.active { opacity: 1; pointer-events: auto; }
+        .floating-search-bar {
+            position: fixed; top: -100%; left: 50%; transform: translateX(-50%);
+            width: 90%; max-width: 400px; background: var(--surface);
+            border-radius: 20px; padding: 15px; box-shadow: 0 15px 30px rgba(0,0,0,0.2);
+            z-index: 2001; transition: top 0.4s var(--ios-ease);
+            display: flex; flex-direction: column; gap: 10px;
+        }
+        .floating-search-bar.active { top: 20px; }
+        .search-input-wrapper { display: flex; align-items: center; background: var(--bg-sec); border-radius: 12px; padding: 10px 15px; border: 1px solid var(--border); }
+        .floating-search-input { flex: 1; border: none; background: transparent; font-size: 16px; color: var(--text-main); outline: none; }
+        .floating-search-results { max-height: 300px; overflow-y: auto; flex-direction: column; }
+        
+        .search-result-item {
+            padding: 10px;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .search-result-item:hover { background: var(--bg-sec); }
+        .search-result-item:last-child { border-bottom: none; }
+        
+        .highlight-item { animation: blinkHighlight 0.5s ease-in-out 6 alternate !important; }
+        @keyframes blinkHighlight {
+            0% { background-color: var(--surface); transform: scale(1); box-shadow: none; }
+            100% { background-color: var(--bg-info); transform: scale(1.02); box-shadow: 0 0 15px rgba(14, 165, 233, 0.4); border-color: var(--accent); }
+        }
+
+        /* Average Details Wrapper (Smooth Grid Transition) */
+        .average-details-wrapper {
+            display: grid;
+            grid-template-rows: 0fr;
+            transition: grid-template-rows 0.5s var(--ios-ease);
+        }
+        .average-details-wrapper.open {
+            grid-template-rows: 1fr;
+        }
+        .average-details {
+            overflow: hidden;
+        }
+        .average-details-inner {
+            padding: 15px;
+            min-height: 0;
+        }
+        
+        .avg-good { background: linear-gradient(135deg, #059669, #10b981) !important; }
+        .avg-bad { background: linear-gradient(135deg, #be123c, #e11d48) !important; }
+        .dark-mode .avg-good { background: linear-gradient(135deg, #064e3b, #059669) !important; }
+        .dark-mode .avg-bad { background: linear-gradient(135deg, #881337, #be123c) !important; }
+        
+        .note-urgent-item {
+            background: var(--bg-warn);
+            border-left: 4px solid #f59e0b;
+            padding: 10px;
+            border-radius: 12px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: transform 0.2s var(--ios-ease);
+        }
+        .note-urgent-item:active { transform: scale(0.98); }
+        
+        .gradient-text {
+            background: linear-gradient(135deg, var(--accent), var(--success));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Estilos para Tabs de Resumen Verticales */
+        .tab-btn-vertical {
+            cursor: pointer; transition: all 0.2s var(--ios-ease);
+            border-left: 4px solid transparent !important;
+        }
+        .tab-btn-vertical.active {
+            background: var(--bg-info) !important;
+            border-left: 4px solid var(--accent) !important;
+        }
+        .dynamic-view {
+            animation: slideDownFade 0.4s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+        }
+        @keyframes slideDownFade {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+    </style>
+</head>
+<body>
+
+<div id="progress-line" class="progress-line"></div>
+<div id="autosave-pill"><span>✅</span> <span id="pill-label">Guardado</span></div>
+
+<!-- NOTCH DINÁMICO -->
+<div id="dynamic-notch" class="dynamic-notch">
+    <span class="notch-label">Semana anterior</span>
+    <span class="notch-amount" id="notch-amount">S/. 0.00</span>
+</div>
+
+<!-- OVERLAY PROGRESO EXCEL -->
+<div class="excel-progress-overlay" id="excel-progress-overlay">
+    <div class="ep-card">
+        <div style="font-size:40px; margin-bottom:10px;">📗</div>
+        <h3 style="margin:0; color:var(--text-main); font-size:18px; font-weight:800;">Procesando Planilla</h3>
+        <p style="color:var(--text-sec); font-size:13px; margin:5px 0 0 0;">Por favor, no cierres la aplicación...</p>
+        <div class="ep-bar-bg">
+            <div class="ep-bar-fill" id="excel-progress-bar"></div>
+        </div>
+        <div class="ep-text" id="excel-progress-text">0%</div>
+    </div>
+</div>
+
+<!-- DRAWER HISTORIAL REDISEÑADO COMPACTO -->
+<div class="sheet-overlay" id="drawer-overlay" onclick="toggleDrawer()"></div>
+<div class="drawer" id="main-drawer">
+    <h2 style="margin:0 0 2px 0; color:var(--text-main); font-weight:800; font-size: 20px;">Historial</h2>
+    
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; margin-top: 10px;">
+        <button class="drawer-btn" style="background:var(--bg); color:var(--text-main); margin:0; border:1px solid var(--border);" onclick="seleccionarTodo()">☑️ Todo</button>
+        <button class="drawer-btn" style="background:var(--primary); color:var(--bg); margin:0;" onclick="verResumenSeleccionado()">📊 Total</button>
+    </div>
+
+    <div class="history-list" id="lista-historial"></div>
+    
+    <div style="margin-top:auto; padding-top: 10px;">
+        <div style="display:flex; gap:6px; margin-bottom:6px;">
+            <button class="drawer-btn" style="flex:1; color:var(--accent); box-shadow:0 1px 3px rgba(0,0,0,0.05); border:1px solid var(--border-info);" onclick="abrirModalLocal()">💾 Backup</button>
+            <button class="drawer-btn" style="flex:1; color:var(--text-sec); box-shadow:0 1px 3px rgba(0,0,0,0.05); border:1px solid var(--border);" onclick="abrirArchivados()">📦 Archivados</button>
+            <button class="drawer-btn" style="flex:0 0 50px; color:var(--text-main); box-shadow:0 1px 3px rgba(0,0,0,0.05); border:1px solid var(--border);" onclick="toggleDarkMode()" id="theme-toggle-drawer">🌙</button>
+        </div>
+        <button class="drawer-btn" style="color:var(--success); box-shadow:0 1px 3px rgba(0,0,0,0.05); border:1px solid var(--border-success);" onclick="descargarTxtProfesional()">📄 Descargar TXT</button>
+        <button class="drawer-btn" style="color:var(--danger); box-shadow:0 1px 3px rgba(0,0,0,0.05); margin-top:6px; border:1px solid var(--border-danger);" onclick="vaciarTodo()">🗑️ Borrar Historial</button>
+        <p style="text-align:center; color:var(--text-sec); font-size:10px; margin-top:10px; margin-bottom:0; font-weight:500;">ElBartO v8.2 Plus</p>
+    </div>
+</div>
+
+<!-- HEADER -->
+<header class="top-bar">
+    <div class="app-title">Go! <span style="font-size:18px;">📱</span> <span style="font-size:12px; color:var(--text-sec); font-weight:500; margin-left:5px;">v8.2 Plus</span></div>
+    <div style="display:flex; align-items:center; gap:10px;">
+        <button onclick="toggleSearch()" aria-label="Buscar" style="background:none; border:none; font-size:20px; cursor:pointer; padding:0; color:var(--text-main); z-index: 21;">🔍</button>
+        <div class="date-display">
+            <span id="viewing-date-top">HOY</span>
+        </div>
+    </div>
+</header>
+
+<!-- SEARCH OVERLAY FLOTANTE -->
+<div class="search-overlay" id="search-overlay" onclick="toggleSearch()"></div>
+<div class="floating-search-bar" id="floating-search-bar">
+    <div class="search-input-wrapper">
+        <span style="font-size:18px; margin-right:10px;">🔍</span>
+        <input type="text" id="global-search" class="floating-search-input" placeholder="Buscar código..." onkeyup="handleGlobalSearch(event)">
+        <button onclick="toggleSearch()" style="background:none; border:none; font-size:14px; font-weight:600; color:var(--text-sec); cursor:pointer;">Cancelar</button>
+    </div>
+    <div id="search-results" class="floating-search-results"></div>
+</div>
+
+<!-- DASHBOARD STATS -->
+<div class="dashboard">
+    <div class="stat-box">
+        <div class="stat-value" id="stat-pedidos">0</div>
+        <div class="stat-label">Pedidos</div>
+    </div>
+    <div class="divider"></div>
+    <div class="stat-box">
+        <div class="stat-value" id="stat-casos" style="color:var(--accent)">0</div>
+        <div class="stat-label">Casos</div>
+    </div>
+    <div class="divider"></div>
+    <div class="stat-box">
+        <div class="stat-value gradient-text" id="stat-monto">S/0</div>
+        <div class="stat-label">Total Est.</div>
+    </div>
+</div>
+
+<!-- BANNER PROMEDIO DIARIO -->
+<div class="average-container" id="average-container">
+    <div class="average-banner" id="average-banner" onclick="toggleAverageDetails()">
+        <div class="avg-left">
+            <span class="avg-icon">📈</span>
+            <span class="avg-text">Promedio Diario <span id="avg-target-text" style="font-size:10px; opacity:0.8; display:block;">Meta: S/. 0</span></span>
+        </div>
+        <span class="avg-value" id="stat-promedio">S/. 0.00</span>
+    </div>
+    <div class="average-details-wrapper" id="average-details-wrapper">
+        <div class="average-details" id="average-details">
+            <div class="average-details-inner" id="average-details-inner">
+                <div style="width: 40px; height: 4px; background: var(--border); border-radius: 10px; margin: 0 auto 15px auto;"></div>
+                <h4 style="margin:0 0 10px 0; font-size:14px; color:var(--text-main);">Rendimiento Semanal</h4>
+                <div style="height: 90px; margin-bottom: 10px;">
+                    <canvas id="historyChart"></canvas>
+                </div>
+                <h4 style="margin:0 0 10px 0; font-size:14px; color:var(--text-main);">Distribución por Día</h4>
+                <div style="height: 90px; margin-bottom: 10px;">
+                    <canvas id="detailsChart"></canvas>
+                </div>
+                <div id="urgent-notes-container" style="max-height: 450px; overflow-y: auto; padding-right: 5px; padding-bottom: 15px;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- LISTA PRINCIPAL (SCROLL AREA) -->
+<main class="main-scroll-area" id="main-list-area">
+    <div id="duplicate-banner" class="duplicate-alert" style="display:none;" onclick="eliminarRepetidos()">
+        <span>⚠️ Se encontraron duplicados</span>
+        <span style="text-decoration:underline;">LIMPIAR</span>
+    </div>
+    <div id="lista-items">
+        <!-- JS renderiza aquí -->
+        <div class="empty-state">
+            <div style="font-size:40px; margin-bottom:10px;">📷</div>
+            Toca el botón central<br>para escanear guías
+        </div>
+    </div>
+</main>
+
+<!-- BOTTOM DOCK -->
+<nav class="bottom-dock">
+    <button class="dock-btn" onclick="toggleDrawer()" aria-label="Abrir historial">
+        <svg viewBox="0 0 24 24"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"></path></svg>
+        Historial
+    </button>
+    <div style="position:relative;">
+        <label for="camera-input" class="scan-fab" id="scan-btn" onclick="playSound('click')" aria-label="Escanear guías">
+            <svg viewBox="0 0 24 24" style="width:28px; height:28px; fill:white;"><path d="M4 4h4v2H6v2H4V4zm16 0h-4v2h2v2h2V4zM4 20h4v-2H6v-2H4v4zm16 0h-4v-2h2v-2h2v4zm-9-9h2v2h-2v-2z"></path></svg>
+        </label>
+        <input type="file" id="camera-input" accept="image/*" multiple style="display:none;">
+    </div>
+    <button class="dock-btn" onclick="toggleManualSheet()" aria-label="Ingreso manual">
+        <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"></path></svg>
+        Manual
+    </button>
+</nav>
+
+<!-- SHEET MANUAL -->
+<div class="sheet-overlay" id="manual-overlay" onclick="toggleManualSheet()"></div>
+<div class="bottom-sheet" id="manual-sheet">
+    <div class="sheet-handle"></div>
+    <div class="input-group" style="margin-top: 10px;">
+        <textarea id="manualInput" class="styled-input" placeholder="Pega los códigos aquí (uno por línea)..." style="height: 150px; font-size: 16px; text-align: left; resize: none; font-family: monospace;"></textarea>
+    </div>
+    <button class="btn-sheet primary" style="width:100%; margin-top:10px;" onclick="procesarIngresoManual()">Revisar y Agregar</button>
+</div>
+
+<!-- MODAL EDIT POPUP (MANTENER PRESIONADO) -->
+<div class="edit-overlay" id="edit-overlay" onclick="closeEditModal()">
+    <div class="edit-modal" id="edit-modal" onclick="event.stopPropagation()">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:12px; margin-bottom:16px;">
+            <h3 style="margin:0; font-size:18px; color:var(--text-main); font-weight:800;">Editar Registro</h3>
+            <button onclick="closeEditModal()" aria-label="Cerrar edición" style="background:none; border:none; font-size:24px; color:var(--text-sec); padding:0; line-height:1; cursor:pointer;">✕</button>
+        </div>
+        
+        <label style="font-size:12px; color:var(--text-sec); font-weight:700; margin-bottom:6px; display:block;">Código</label>
+        <input type="number" id="edit-codigo" class="styled-input" style="font-size:20px; padding:12px; margin-bottom:16px; border:1px solid var(--border);">
+        
+        <div style="display:flex; gap:10px; margin-bottom:16px;">
+            <button id="edit-btn-pedido" onclick="setEditTipo('PEDIDO')" style="flex:1; padding:12px; border-radius:12px; border:1px solid var(--border); background:var(--bg); font-weight:700; color:var(--text-sec); transition:all 0.2s; cursor:pointer;">PEDIDO</button>
+            <button id="edit-btn-caso" onclick="setEditTipo('CASO')" style="flex:1; padding:12px; border-radius:12px; border:1px solid var(--border); background:var(--bg); font-weight:700; color:var(--text-sec); transition:all 0.2s; cursor:pointer;">CASO</button>
+        </div>
+        
+        <label style="font-size:12px; color:var(--text-sec); font-weight:700; margin-bottom:6px; display:block;">Precio Personalizado (S/.)</label>
+        <input type="number" id="edit-precio" class="styled-input" placeholder="Dejar vacío para base" style="font-size:14px; padding:12px; margin-bottom:16px; background:var(--bg-success); border:1px solid var(--border-success);">
+        
+        <label style="font-size:12px; color:var(--text-sec); font-weight:700; margin-bottom:6px; display:block;">Nota / Observación</label>
+        <textarea id="edit-nota" class="styled-input" placeholder="Ej. Dirección..." style="font-size:14px; padding:12px; min-height:70px; margin-bottom:20px; font-family:-apple-system, sans-serif; resize:none; border:1px solid var(--border);"></textarea>
+        
+        <button onclick="guardarEdicion()" class="btn-sheet primary" style="width:100%; border-radius:16px; font-size:16px;">Guardar Cambios</button>
+    </div>
+</div>
+
+<!-- MODAL EDITAR DÍA (LONG PRESS) -->
+<div class="edit-overlay" id="day-edit-overlay" onclick="closeDayEditModal()">
+    <div class="edit-modal" id="day-edit-modal" onclick="event.stopPropagation()">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:12px; margin-bottom:16px;">
+            <h3 style="margin:0; font-size:18px; color:var(--text-main); font-weight:800;">Editar Día Completo</h3>
+            <button onclick="closeDayEditModal()" aria-label="Cerrar edición" style="background:none; border:none; font-size:24px; color:var(--text-sec); padding:0; line-height:1; cursor:pointer;">✕</button>
+        </div>
+        <div style="background:var(--bg-info); border:1px solid var(--border-info); padding:10px; border-radius:12px; margin-bottom:15px;">
+            <p style="font-size:12px; color:var(--accent); margin:0; font-weight:600;">⚠️ Atención: Los valores que ingreses aquí reemplazarán el precio o la nota de <b>todos</b> los registros de este día.</p>
+        </div>
+        
+        <label style="font-size:12px; color:var(--text-sec); font-weight:700; margin-bottom:6px; display:block;">Nuevo Precio Masivo (S/.)</label>
+        <input type="number" id="day-edit-precio" class="styled-input" placeholder="Ej. 6.50 (Dejar vacío para no cambiar)" style="font-size:14px; padding:12px; margin-bottom:16px; border:1px solid var(--border);">
+        
+        <label style="font-size:12px; color:var(--text-sec); font-weight:700; margin-bottom:6px; display:block;">Nueva Nota Masiva</label>
+        <textarea id="day-edit-nota" class="styled-input" placeholder="Ej. Miraflores (Dejar vacío para no cambiar)" style="font-size:14px; padding:12px; min-height:70px; margin-bottom:20px; font-family:-apple-system, sans-serif; resize:none; border:1px solid var(--border);"></textarea>
+        
+        <button onclick="guardarEdicionDia()" class="btn-sheet primary" style="width:100%; border-radius:16px; font-size:16px; margin-bottom:10px;">Aplicar a Todos</button>
+        <button id="btn-revert-day" onclick="revertirEdicionDia()" class="btn-sheet" style="width:100%; border-radius:16px; font-size:14px; background:var(--bg-danger); color:var(--danger); border:1px solid var(--border-danger); display:none;">↩️ Deshacer último cambio</button>
+    </div>
+</div>
+
+<!-- MODAL SUFIJO -->
+<div class="edit-overlay" id="suffix-overlay" onclick="closeSuffixModal()">
+    <div class="edit-modal" onclick="event.stopPropagation()">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:12px; margin-bottom:16px;">
+            <h3 style="margin:0; font-size:18px; color:var(--text-main); font-weight:800;">Distrito para Manuales</h3>
+            <button onclick="closeSuffixModal()" style="background:none; border:none; font-size:24px; color:var(--text-sec); padding:0; line-height:1; cursor:pointer;">✕</button>
+        </div>
+        <p style="font-size:12px; color:var(--text-sec); margin-top:0; margin-bottom:15px;">Este distrito se añadirá automáticamente al copiar códigos manuales (Ej: 12345678 - Miraflores).</p>
+        <input type="text" id="suffix-input-modal" class="styled-input" placeholder="Ej. Miraflores" style="font-size:16px; padding:12px; margin-bottom:20px; border:1px solid var(--border);">
+        <button onclick="saveSuffix()" class="btn-sheet primary" style="width:100%; border-radius:16px; font-size:16px;">Guardar Distrito</button>
+    </div>
+</div>
+
+<!-- MODAL REVIEW MANUAL (POPUP) -->
+<div class="sheet-overlay" id="manual-review-overlay"></div>
+<div class="bottom-sheet" id="manual-review-sheet" style="padding:0; display:flex; flex-direction:column; max-height:85vh;">
+    <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; background:var(--surface); border-radius:24px 24px 0 0;">
+        <h3 style="margin:0; color:var(--text-main); font-size:17px; font-weight:700;">Revisión (<span id="review-count">0</span>)</h3>
+        <button onclick="closeManualReview()" style="background:none; border:none; color:var(--accent); font-size:16px; font-weight:700;">Cerrar</button>
+    </div>
+    <div id="manual-review-list" style="flex:1; overflow-y:auto; padding:15px;"></div>
+    <div style="padding:15px; background:var(--surface); border-top:1px solid var(--border);">
+        <button onclick="confirmManualImport()" class="btn-sheet primary" style="width:100%; background:var(--success);">Importar a la Lista</button>
+    </div>
+</div>
+
+<!-- Inputs Ocultos -->
+<input type="file" id="manual-cam" accept="image/*" capture="environment" style="display:none">
+<input type="file" id="manual-gallery" accept="image/*" style="display:none">
+<input type="file" id="excel-audit-input" accept=".xlsx, .xls" multiple style="display:none" onchange="procesarComparacionExcel(this)">
+
+<!-- MODAL DETALLES FULLSCREEN -->
+<div class="modal-fullscreen" id="modal-detalles">
+    <div style="background:var(--surface); padding:20px; border-bottom:1px solid var(--border); position:sticky; top:0; z-index:10; display:flex; flex-direction:column; gap:15px;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h2 style="margin:0; color:var(--text-main); font-size:20px; font-weight:700; letter-spacing:-0.5px;">Resumen Semanal</h2>
+            <button onclick="document.getElementById('modal-detalles').style.display='none'" style="font-size:16px; font-weight:600; border:none; background:none; color:var(--accent);">Cerrar</button>
+        </div>
+        <div style="text-align: center;">
+            <div style="font-size: 12px; color: var(--text-sec); font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">Total Generado</div>
+            <div id="total-pago-full" class="gradient-text" style="font-size: 46px; font-weight: 900; letter-spacing: -1px; margin-bottom: 15px;">S/. 0.00</div>
+            
+            <div style="display: flex; gap: 10px;">
+                <div style="flex: 1; background: var(--bg-sec); padding: 12px; border-radius: 16px; text-align: left; border: 1px solid var(--border);">
+                    <div style="font-size: 11px; color: var(--text-sec); font-weight: 600; margin-bottom: 4px;">Precio Base</div>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <b id="lbl-precio-base" style="font-size: 16px; color: var(--text-main);">S/. 5.00</b>
+                        <button onclick="cambiarPrecio()" style="background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 4px 8px; font-size: 11px; font-weight: 700; color: var(--accent); box-shadow: 0 1px 2px rgba(0,0,0,0.05);">Editar</button>
+                    </div>
+                </div>
+                <div style="flex: 1; background: var(--bg-sec); padding: 12px; border-radius: 16px; text-align: left; border: 1px solid var(--border);">
+                    <div style="font-size: 11px; color: var(--text-sec); font-weight: 600; margin-bottom: 4px;">Meta Semanal</div>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <b id="lbl-meta-base" style="font-size: 16px; color: var(--text-main);">S/. 500</b>
+                        <button onclick="cambiarMeta()" style="background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 4px 8px; font-size: 11px; font-weight: 700; color: var(--accent); box-shadow: 0 1px 2px rgba(0,0,0,0.05);">Editar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="detalle-breakdown" style="padding:15px;">
+        <!-- Se llena con JS -->
+    </div>
+</div>
+
+<!-- NUEVO MODAL DASHBOARD DE AUDITORÍA -->
+<div class="modal-fullscreen" id="modal-audit-dashboard" style="z-index: 500;">
+    <div style="background:var(--surface); padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; position:sticky; top:0; z-index:10;">
+        <h2 style="margin:0; color:var(--text-main); font-size:18px; font-weight:800;">Auditoría Excel</h2>
+        <button onclick="document.getElementById('modal-audit-dashboard').style.display='none'" style="font-size:16px; font-weight:700; border:none; background:none; color:var(--accent);">Listo</button>
+    </div>
+    <div style="padding:15px;" id="audit-main-content">
+        <!-- BOTÓN DE CERRAR SEMANA PRINCIPAL -->
+        <div id="audit-btn-top" style="margin-bottom: 15px;"></div>
+        
+        <div id="audit-financial-summary"></div>
+        <div id="audit-comparison-details"></div>
+        <div class="input-group" style="margin-top:20px; margin-bottom:15px;">
+            <input type="text" id="audit-search-input" class="styled-input" placeholder="🔍 Buscar registros..." style="font-size:15px; padding:12px 16px; text-align:left; border:1px solid var(--border); border-radius:16px; font-weight:600;" onkeyup="filterAuditTable()">
+        </div>
+        <div id="audit-results-container"></div>
+    </div>
+</div>
+
+<!-- MODAL CÓDIGOS ARCHIVADOS DOMINGO -->
+<div class="modal-fullscreen" id="modal-archivados" style="z-index: 500;">
+    <div style="background:var(--surface); padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; position:sticky; top:0; z-index:10;">
+        <h2 style="margin:0; color:var(--text-main); font-size:18px; font-weight:800;">Domingos (48h)</h2>
+        <div>
+            <button onclick="vaciarArchivados()" style="font-size:12px; font-weight:700; border:1px solid var(--border-danger); background:var(--bg-danger); color:var(--danger); padding:6px 10px; border-radius:8px; margin-right:6px; cursor:pointer;">Vaciar</button>
+            <button onclick="document.getElementById('modal-archivados').style.display='none'" style="font-size:16px; font-weight:700; border:none; background:none; color:var(--accent);">Cerrar</button>
+        </div>
+    </div>
+    <div style="padding:20px;" id="lista-archivados-content"></div>
+</div>
+
+<!-- NUEVO MODAL BACKUP LOCAL -->
+<div class="modal-fullscreen" id="modal-local" style="z-index: 600; background:rgba(15,23,42,0.8); backdrop-filter:blur(8px); display:none; align-items:center; justify-content:center; padding:20px;">
+    <div style="background:var(--surface); width:100%; max-width:350px; border-radius:24px; padding:24px; box-shadow:0 20px 40px rgba(0,0,0,0.2);">
+        <h3 style="margin:0 0 10px 0; font-size:20px; color:var(--text-main); font-weight:800; text-align:center;">Backup Local</h3>
+        <p style="font-size:13px; color:var(--text-sec); text-align:center; font-weight:500; margin-bottom:20px;">Guarda tus datos directamente en tu dispositivo. Selecciona la carpeta de respaldo la primera vez.</p>
+        
+        <button onclick="exportarBackupLocal()" class="btn-sheet" style="width:100%; background:var(--success); color:white; margin-bottom:12px;">💾 Guardar Backup Automático</button>
+        <button onclick="document.getElementById('import-backup-file').click()" class="btn-sheet" style="width:100%; background:var(--bg-danger); color:var(--danger); border:1px solid var(--border-danger); margin-bottom:20px;">📂 Importar Archivo de Backup</button>
+        <input type="file" id="import-backup-file" accept=".json" style="display:none" onchange="importarBackupLocal(this)">
+        
+        <h4 style="margin:20px 0 10px 0; font-size:14px; color:var(--text-main);">Semanas Anteriores</h4>
+        <div id="past-weeks-container" style="max-height: 150px; overflow-y: auto; background: var(--bg-sec); border-radius: 12px; padding: 10px; border: 1px solid var(--border); margin-bottom: 20px;">
+            <!-- JS renders here -->
+        </div>
+
+        <button onclick="cerrarModalLocal()" class="btn-sheet" style="width:100%; background:transparent; color:var(--text-sec); padding:10px;">Cerrar Panel</button>
+    </div>
+</div>
+
+<!-- POPUPS METAS -->
+<div class="meta-popup" id="modal-meta-fail">
+    <div class="meta-card">
+        <div style="font-size:48px; margin-bottom:10px;">💪</div>
+        <h3 style="margin:0 0 10px 0; color:var(--text-main); font-size:22px; font-weight:800;">Sigue adelante</h3>
+        <p style="color:var(--text-sec); font-size:14px; margin-bottom:20px;">Esta semana lograste <b style="color:var(--danger); font-size:38px; display:block; margin: 15px 0; text-shadow: 0 2px 4px rgba(190,18,60,0.2);" id="fail-monto">S/. 0</b> ¡Para la próxima semana te irá mucho mejor, no te rindas!</p>
+        <button onclick="ejecutarReinicioSemana()" class="btn-sheet primary" style="width:100%;">Cerrar y Limpiar Semana</button>
+    </div>
+</div>
+
+<div class="meta-popup" id="modal-meta-success">
+    <div class="confetti-container" id="confetti-container"></div>
+    <div class="meta-card">
+        <div style="font-size:48px; margin-bottom:10px; animation: bounce 1s infinite alternate;">🏆</div>
+        <h3 style="margin:0 0 10px 0; color:var(--success); font-size:24px; font-weight:900; line-height:1.1;">¡META SUPERADA!</h3>
+        <p style="color:var(--text-sec); font-size:14px; margin-bottom:20px;">¡Increíble trabajo! Lograste <b class="text-glow-success" style="font-size:42px; display:block; margin: 15px 0; font-weight: 900;" id="success-monto">S/. 0</b> superando tu meta semanal. ¡A celebrarlo!</p>
+        <button onclick="ejecutarReinicioSemana()" class="btn-sheet primary" style="width:100%; background:var(--success);">Continuar e Iniciar Semana</button>
+    </div>
+</div>
+
+<script>
+    // --- PWA REGISTRATION INLINE ---
+    const rawSvgIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><defs><linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#020617"/><stop offset="100%" stop-color="#0f172a"/></linearGradient><linearGradient id="text" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#ffffff"/><stop offset="100%" stop-color="#e2e8f0"/></linearGradient></defs><rect width="512" height="512" rx="112" fill="url(#bg)"/><path d="M100 150 L100 100 L150 100 M362 100 L412 100 L412 150 M412 362 L412 412 L362 412 M150 412 L100 412 L100 362" fill="none" stroke="#0ea5e9" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><text x="256" y="310" font-family="Arial, sans-serif" font-size="190" font-weight="900" fill="url(#text)" text-anchor="middle" letter-spacing="-5" font-style="italic">Go!</text><line x1="80" y1="256" x2="432" y2="256" stroke="#10b981" stroke-width="8" opacity="0.8"/><line x1="80" y1="256" x2="432" y2="256" stroke="#10b981" stroke-width="20" opacity="0.4" filter="blur(4px)"/></svg>`;
+    const encodedIconPWA = "data:image/svg+xml;base64," + btoa(rawSvgIcon);
+    
+    const manifestJson = {
+        "name": "Go! Scanner Pro v8.2 Plus",
+        "short_name": "Go! v8.2 Plus",
+        "start_url": ".",
+        "display": "standalone",
+        "background_color": "#f8fafc",
+        "theme_color": "#f8fafc",
+        "icons": [{
+            "src": encodedIconPWA,
+            "sizes": "192x192 512x512",
+            "type": "image/svg+xml",
+            "purpose": "any maskable"
+        }]
+    };
+    const manifestBlob = new Blob([JSON.stringify(manifestJson)], {type: 'application/json'});
+    document.getElementById('manifest-link').href = URL.createObjectURL(manifestBlob);
+    document.getElementById('apple-icon').href = encodedIconPWA;
+
+    // Service Worker Mejorado (Estrategia Stale-While-Revalidate para 100% Offline)
+    const currentUrl = location.href.split('#')[0].split('?')[0];
+    const swCode = `
+        const CACHE_NAME = 'go-scanner-v8-offline';
+        const MAIN_URL = '${currentUrl}';
+        const ASSETS = [
+            MAIN_URL,
+            'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js',
+            'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
+            'https://cdn.jsdelivr.net/npm/chart.js'
+        ];
+        
+        self.addEventListener('install', e => {
+            self.skipWaiting();
+            e.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS)));
+        });
+        
+        self.addEventListener('activate', e => {
+            e.waitUntil(caches.keys().then(keys => Promise.all(
+                keys.map(k => { if(k !== CACHE_NAME) return caches.delete(k); })
+            )));
+            self.clients.claim();
+        });
+        
+        self.addEventListener('fetch', e => {
+            if (e.request.method !== 'GET') return;
+            e.respondWith(
+                caches.match(e.request).then(cached => {
+                    const networked = fetch(e.request).then(res => {
+                        const cacheCopy = res.clone();
+                        caches.open(CACHE_NAME).then(c => c.put(e.request, cacheCopy));
+                        return res;
+                    }).catch(() => cached);
+                    return cached || networked;
+                })
+            );
+        });
+    `;
+    const swBlob = new Blob([swCode], {type: 'application/javascript'});
+    if('serviceWorker' in navigator) {
+        navigator.serviceWorker.register(URL.createObjectURL(swBlob)).catch(console.error);
+    }
+
+    // --- LOGICA DE AUDIO ---
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    const audioCtx = new AudioContext();
+
+    function playSound(type) {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        osc.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        
+        const now = audioCtx.currentTime;
+        if (type === 'success') {
+            osc.frequency.setValueAtTime(880, now);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+            osc.start(); osc.stop(now + 0.1);
+        } else if (type === 'error') {
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(150, now);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+            osc.start(); osc.stop(now + 0.3);
+            if (navigator.vibrate) navigator.vibrate([50, 50, 50]);
+        } else if (type === 'click') {
+            osc.frequency.setValueAtTime(400, now);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+            osc.start(); osc.stop(now + 0.05);
+            if (navigator.vibrate) navigator.vibrate(15);
+        } else if (type === 'delete') {
+            osc.frequency.setValueAtTime(200, now);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+            osc.start(); osc.stop(now + 0.2);
+        }
+    }
+
+    // --- VARIABLES Y ESTADO (Con manejo de errores robusto) ---
+    let dbRutas = {};
+    let dbGanancias = {};
+    let dbArchivoDomingo = null;
+    let dbExcels = [];
+    let precioPorPedido = 5.00;
+    let metaSemanal = 500;
+
+    try { dbRutas = JSON.parse(localStorage.getItem('rutasGoV3')) || {}; } catch(e) { console.error("Error parsing dbRutas", e); }
+    try { dbGanancias = JSON.parse(localStorage.getItem('rutasGoGanancias')) || {}; } catch(e) { console.error("Error parsing dbGanancias", e); }
+    try { dbArchivoDomingo = JSON.parse(localStorage.getItem('rutasGoDomingo')) || null; } catch(e) { console.error("Error parsing dbArchivoDomingo", e); }
+    try { dbExcels = JSON.parse(localStorage.getItem('excelGoRaw')) || []; } catch(e) { console.error("Error parsing dbExcels", e); }
+    
+    const storedPrecio = localStorage.getItem('precioGo');
+    if (storedPrecio && !isNaN(storedPrecio)) precioPorPedido = parseFloat(storedPrecio);
+    
+    const storedMeta = localStorage.getItem('metaGo');
+    if (storedMeta && !isNaN(storedMeta)) metaSemanal = parseFloat(storedMeta);
+    
+    const getLocalISO = () => {
+        const d = new Date();
+        const offset = d.getTimezoneOffset() * 60000;
+        return new Date(d.getTime() - offset).toISOString().split('T')[0];
+    };
+    const getLunesSemanaActual = () => {
+        const d = new Date();
+        const day = d.getDay();
+        const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+        const monday = new Date(d.setDate(diff));
+        const offset = monday.getTimezoneOffset() * 60000;
+        return new Date(monday.getTime() - offset).toISOString().split('T')[0];
+    };
+    let fechaSeleccionada = getLocalISO();
+    let modoSeleccionActivo = false; 
+    let manualCandidates = []; 
+    let datosComparacion = []; 
+    let datosAuditoriaRender = null; 
+    
+    let historyChartInstance = null;
+    let detailsChartInstance = null;
+
+    // Variables Edición (Long Press)
+    let pressTimer;
+    let startX = 0, startY = 0;
+    let currentEditingId = null;
+    let tipoEditActual = 'PEDIDO';
+
+    // Variables Edición Día (Long Press)
+    let dayPressTimer;
+    let dayStartX = 0, dayStartY = 0;
+    let currentEditingDay = null;
+    let wasDayLongPressed = false;
+    let dayEditBackup = null;
+
+    // Variable Sufijo
+    let sufijoActual = localStorage.getItem('goSufijo') || "Miraflores";
+
+    // Manejo de Handle de Carpeta en IndexedDB para Local Backup
+    let dirHandle = null;
+    function initIDBBackup() {
+        try {
+            const req = indexedDB.open('GoBackupDB', 1);
+            req.onupgradeneeded = (e) => { e.target.result.createObjectStore('handles'); };
+            req.onsuccess = (e) => {
+                const db = e.target.result;
+                if (!db.objectStoreNames.contains('handles')) return;
+                const tx = db.transaction('handles', 'readonly');
+                const store = tx.objectStore('handles');
+                const getReq = store.get('dir');
+                getReq.onsuccess = () => { dirHandle = getReq.result; };
+            };
+        } catch (e) { console.warn("IndexedDB no disponible para backup", e); }
+    }
+
+    // --- INICIALIZACIÓN ---
+    document.addEventListener('DOMContentLoaded', () => { 
+        if (localStorage.getItem('goDarkMode') === '1') {
+            document.body.classList.add('dark-mode');
+            const toggleDrawerBtn = document.getElementById('theme-toggle-drawer');
+            if(toggleDrawerBtn) toggleDrawerBtn.innerText = '☀️';
+            document.querySelector('meta[name="theme-color"]').setAttribute('content', '#000000');
+        }
+
+        initIDBBackup();
+        purgarArchivoDomingo();
+        renderizarTodo(); 
+        document.getElementById('lbl-precio-base').innerText = `S/. ${precioPorPedido.toFixed(2)}`;
+        document.getElementById('lbl-meta-base').innerText = `S/. ${metaSemanal.toFixed(0)}`;
+
+        // Lógica del Notch Dinámico (48 horas)
+        const lastTotal = localStorage.getItem('goLastWeekTotal');
+        const lastDate = localStorage.getItem('goLastWeekDate');
+        if (lastTotal && lastDate) {
+            const diffDays = (Date.now() - parseInt(lastDate)) / (1000 * 60 * 60 * 24);
+            if (diffDays <= 2) {
+                const notch = document.getElementById('dynamic-notch');
+                document.getElementById('notch-amount').innerText = `S/. ${parseFloat(lastTotal).toFixed(2)}`;
+                setTimeout(() => {
+                    notch.classList.add('visible');
+                    setTimeout(() => {
+                        notch.classList.remove('visible');
+                    }, 5000);
+                }, 500);
+            }
+        }
+
+        // Lógica Swipe para cambiar de día
+        const listArea = document.getElementById('main-list-area');
+        let swipeStartX = 0, swipeStartY = 0, swipeEndX = 0, swipeEndY = 0;
+
+        listArea.addEventListener('touchstart', e => {
+            swipeStartX = e.changedTouches[0].screenX;
+            swipeStartY = e.changedTouches[0].screenY;
+        }, {passive: true});
+
+        listArea.addEventListener('touchend', e => {
+            swipeEndX = e.changedTouches[0].screenX;
+            swipeEndY = e.changedTouches[0].screenY;
+            handleSwipe();
+        }, {passive: true});
+
+        function handleSwipe() {
+            const diffX = swipeEndX - swipeStartX;
+            const diffY = swipeEndY - swipeStartY;
+            
+            if (Math.abs(diffX) > 80 && Math.abs(diffX) > Math.abs(diffY) * 1.5) {
+                const allDates = Object.keys(dbRutas).sort();
+                if (allDates.length <= 1) return; 
+                
+                let currentIndex = allDates.indexOf(fechaSeleccionada);
+                if (currentIndex === -1) return;
+
+                let newIndex = currentIndex;
+                if (diffX > 0) {
+                    newIndex = currentIndex - 1; 
+                } else {
+                    newIndex = currentIndex + 1; 
+                }
+
+                if (newIndex >= 0 && newIndex < allDates.length) {
+                    const container = document.getElementById('lista-items');
+                    if (!container) return;
+                    
+                    container.style.transition = 'transform 0.2s ease-out, opacity 0.2s ease-out';
+                    container.style.transform = diffX > 0 ? 'translateX(100px)' : 'translateX(-100px)';
+                    container.style.opacity = '0';
+                    
+                    setTimeout(() => {
+                        fechaSeleccionada = allDates[newIndex];
+                        renderizarTodo();
+                        
+                        container.style.transition = 'none';
+                        container.style.transform = diffX > 0 ? 'translateX(-100px)' : 'translateX(100px)';
+                        
+                        requestAnimationFrame(() => {
+                            requestAnimationFrame(() => {
+                                container.style.transition = 'transform 0.3s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.3s ease-in';
+                                container.style.transform = 'translateX(0)';
+                                container.style.opacity = '1';
+                            });
+                        });
+                        playSound('click');
+                    }, 200);
+                }
+            }
+        }
+
+        // Lógica Swipe Up para cerrar el panel de promedios
+        let avgSwipeStartY = 0;
+        let lastSwipeTime = 0;
+        const avgDetailsInner = document.getElementById('average-details-inner');
+        if(avgDetailsInner) {
+            avgDetailsInner.addEventListener('touchstart', e => {
+                avgSwipeStartY = e.changedTouches[0].screenY;
+            }, {passive: true});
+            avgDetailsInner.addEventListener('touchend', e => {
+                let avgSwipeEndY = e.changedTouches[0].screenY;
+                let diff = avgSwipeStartY - avgSwipeEndY;
+                
+                if (diff > 40) {
+                    const isInsideNotes = e.target.closest('#urgent-notes-container');
+                    const notesContainer = document.getElementById('urgent-notes-container');
+                    const hasNotes = notesContainer && notesContainer.innerHTML.trim() !== '';
+                    
+                    const now = Date.now();
+                    if (hasNotes && isInsideNotes) {
+                        if (now - lastSwipeTime < 500) {
+                            toggleAverageDetails();
+                        }
+                        lastSwipeTime = now;
+                    } else {
+                        const wrapper = document.getElementById('average-details-wrapper');
+                        if (wrapper.classList.contains('open')) {
+                            toggleAverageDetails();
+                        }
+                    }
+                }
+            }, {passive: true});
+        }
+    });
+
+    // --- MODO OSCURO ---
+    window.toggleDarkMode = function() {
+        document.body.classList.toggle('dark-mode');
+        const isDark = document.body.classList.contains('dark-mode');
+        localStorage.setItem('goDarkMode', isDark ? '1' : '0');
+        
+        const toggleDrawerBtn = document.getElementById('theme-toggle-drawer');
+        if(toggleDrawerBtn) toggleDrawerBtn.innerText = isDark ? '☀️' : '🌙';
+        
+        document.querySelector('meta[name="theme-color"]').setAttribute('content', isDark ? '#000000' : '#f8fafc');
+        
+        playSound('click');
+        
+        if (historyChartInstance || detailsChartInstance) {
+            const wrapper = document.getElementById('average-details-wrapper');
+            if (wrapper && wrapper.classList.contains('open')) {
+                renderAverageCharts();
+            }
+        }
+    };
+
+    // --- ARCHIVO DE DOMINGOS ---
+    function purgarArchivoDomingo() {
+        if (dbArchivoDomingo && dbArchivoDomingo.expiry) {
+            if (Date.now() > dbArchivoDomingo.expiry) {
+                dbArchivoDomingo = null;
+                localStorage.removeItem('rutasGoDomingo');
+            }
+        }
+    }
+
+    function abrirArchivados() {
+        playSound('click');
+        const listContainer = document.getElementById('lista-archivados-content');
+        
+        if (!dbArchivoDomingo || !dbArchivoDomingo.items || dbArchivoDomingo.items.length === 0) {
+            listContainer.innerHTML = `<div style="text-align:center; padding:40px 20px; color:var(--text-sec); font-weight:700; font-size:15px;">No hay códigos de domingos archivados.</div>`;
+        } else {
+            let html = `<div style="font-size:12px; color:var(--text-sec); font-weight:600; text-align:center; margin-bottom:15px; background:var(--bg); padding:10px; border-radius:10px;">Estos códigos pertenecen al domingo anterior y se borrarán en 48h. Evitan que repitas escaneos el lunes. No suman a tu cuenta actual.</div>`;
+            html += `<div style="background:var(--surface); border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,0.03); overflow:hidden; border:1px solid var(--border);">`;
+            
+            dbArchivoDomingo.items.forEach((r, idx) => {
+                const borderBottom = idx < dbArchivoDomingo.items.length - 1 ? 'border-bottom:1px solid var(--border);' : '';
+                let tipoColor = r.tipo === 'CASO' ? 'var(--accent)' : 'var(--success)';
+                let bgBadge = r.tipo === 'CASO' ? 'var(--bg-info)' : 'var(--bg-success)';
+                let borderBadge = r.tipo === 'CASO' ? 'var(--border-info)' : 'var(--border-success)';
+                html += `
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; ${borderBottom}">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span style="font-family:monospace; font-size:15px; font-weight:700; color:var(--text-main);">${r.codigo}</span>
+                            ${r.esManual ? `<span style="font-size:10px;">✏️</span>` : ''}
+                        </div>
+                        <span style="font-size:10px; font-weight:800; color:${tipoColor}; background:${bgBadge}; padding:2px 6px; border-radius:4px; border:1px solid ${borderBadge};">${r.tipo}</span>
+                    </div>
+                `;
+            });
+            html += `</div>`;
+            listContainer.innerHTML = html;
+        }
+        
+        document.getElementById('modal-archivados').style.display = 'flex';
+        toggleDrawer();
+    }
+
+    function vaciarArchivados() {
+        if(confirm("¿Seguro que deseas vaciar el archivo de domingos localmente?")) {
+            dbArchivoDomingo = null;
+            localStorage.removeItem('rutasGoDomingo');
+            playSound('delete');
+            document.getElementById('modal-archivados').style.display = 'none';
+        }
+    }
+
+    // --- PRECIO, META Y CIERRE DE SEMANA ---
+    function cambiarPrecio() {
+        let n = prompt("Establece tu Precio Base por Pedido (S/.):", precioPorPedido);
+        if (n && !isNaN(n)) {
+            precioPorPedido = parseFloat(n);
+            localStorage.setItem('precioGo', precioPorPedido);
+            document.getElementById('lbl-precio-base').innerText = `S/. ${precioPorPedido.toFixed(2)}`;
+            playSound('success');
+            actualizarStorage(false);
+        }
+    }
+
+    function cambiarMeta() {
+        let n = prompt("Establece tu Meta Semanal (S/.):", metaSemanal);
+        if (n && !isNaN(n)) {
+            metaSemanal = parseFloat(n);
+            localStorage.setItem('metaGo', metaSemanal);
+            document.getElementById('lbl-meta-base').innerText = `S/. ${metaSemanal.toFixed(0)}`;
+            playSound('success');
+            calcularPromedio();
+        }
+    }
+
+    window.prepararCierreSemana = function(esPerfecto) {
+        if (!esPerfecto) {
+            if (!confirm("⚠️ El cuadre NO es perfecto.\n\n¿Estás seguro de cerrar la semana y borrar todos los datos para iniciar una nueva?")) return;
+        } else {
+            if (!confirm("✅ Cuadre perfecto.\n\n¿Deseas cerrar la semana y limpiar los datos para empezar la siguiente?")) return;
+        }
+
+        // Recuperar el monto exacto validado de la Auditoría
+        let totalAuditado = datosAuditoriaRender ? datosAuditoriaRender.totalApp : 0;
+        let domingosItems = [];
+        let totalItemsSemana = 0;
+
+        // Extraer todos los domingos existentes antes de limpiar toda la base
+        Object.keys(dbRutas).forEach(f => {
+            let [y, m, d] = f.split('-');
+            let dateObj = new Date(y, m - 1, d);
+            if (dateObj.getDay() === 0) { // 0 es Domingo
+                domingosItems = domingosItems.concat(dbRutas[f].filter(r => !r.esRepetido).map(r => ({codigo: r.numero, tipo: r.tipo, esManual: r.esManual})));
+            }
+            totalItemsSemana += dbRutas[f].filter(r => !r.esRepetido).length;
+        });
+
+        // Guardar domingos al archivo fantasma
+        if (domingosItems.length > 0) {
+            dbArchivoDomingo = {
+                expiry: Date.now() + (48 * 60 * 60 * 1000), 
+                items: domingosItems
+            };
+            localStorage.setItem('rutasGoDomingo', JSON.stringify(dbArchivoDomingo));
+        }
+
+        // Guardar datos para el Notch
+        localStorage.setItem('goLastWeekTotal', totalAuditado);
+        localStorage.setItem('goLastWeekDate', Date.now());
+
+        // Guardar en Historial de Semanas Anteriores
+        let pastWeeks = JSON.parse(localStorage.getItem('goPastWeeks')) || [];
+        pastWeeks.push({
+            id: Date.now(),
+            date: new Date().toISOString(),
+            total: totalAuditado,
+            meta: metaSemanal,
+            count: totalItemsSemana
+        });
+        localStorage.setItem('goPastWeeks', JSON.stringify(pastWeeks));
+
+        document.getElementById('modal-audit-dashboard').style.display = 'none';
+        document.getElementById('modal-detalles').style.display = 'none';
+
+        if (totalAuditado >= metaSemanal) {
+            mostrarPopupMeta(true, totalAuditado);
+        } else {
+            mostrarPopupMeta(false, totalAuditado);
+        }
+    };
+
+    function mostrarPopupMeta(esExito, total) {
+        playSound('success');
+        if (esExito) {
+            document.getElementById('success-monto').innerText = `S/. ${total.toFixed(2)}`;
+            const container = document.getElementById('confetti-container');
+            container.style.display = 'block';
+            container.innerHTML = '';
+            const emojis = ['🎉', '🎈', '🎊', '✨', '💰', '🌟'];
+            for(let i=0; i<30; i++) {
+                let conf = document.createElement('div');
+                conf.className = 'confetti';
+                conf.innerText = emojis[Math.floor(Math.random() * emojis.length)];
+                conf.style.left = Math.random() * 100 + 'vw';
+                conf.style.animationDuration = (Math.random() * 2 + 2) + 's';
+                conf.style.animationDelay = (Math.random() * 2) + 's';
+                container.appendChild(conf);
+            }
+            document.getElementById('modal-meta-success').classList.add('show');
+        } else {
+            document.getElementById('fail-monto').innerText = `S/. ${total.toFixed(2)}`;
+            document.getElementById('modal-meta-fail').classList.add('show');
+        }
+    }
+
+    window.ejecutarReinicioSemana = function() {
+        // Formatear totalmente la app para empezar desde cero
+        dbRutas = {};
+        dbExcels = [];
+        localStorage.removeItem('rutasGoV3');
+        localStorage.removeItem('excelGoV5');
+        localStorage.removeItem('excelGoRaw');
+        datosAuditoriaRender = null;
+        
+        fechaSeleccionada = getLocalISO();
+        actualizarStorage(false);
+        
+        document.getElementById('modal-meta-success').classList.remove('show');
+        document.getElementById('modal-meta-fail').classList.remove('show');
+        document.getElementById('confetti-container').style.display = 'none';
+        
+        playSound('delete');
+        
+        // Recargar la página para limpiar todo y mostrar el Notch
+        setTimeout(() => {
+            location.reload();
+        }, 800);
+    };
+
+    // --- LÓGICA DE BACKUP LOCAL ---
+    function abrirModalLocal() {
+        playSound('click');
+        renderPastWeeks();
+        document.getElementById('modal-local').style.display = 'flex';
+        toggleDrawer();
+    }
+
+    function cerrarModalLocal() {
+        playSound('click');
+        document.getElementById('modal-local').style.display = 'none';
+    }
+
+    function renderPastWeeks() {
+        const container = document.getElementById('past-weeks-container');
+        let pastWeeks = JSON.parse(localStorage.getItem('goPastWeeks')) || [];
+        if (pastWeeks.length === 0) {
+            container.innerHTML = '<div style="text-align:center; color:var(--text-sec); font-size:12px; padding:10px;">No hay semanas cerradas aún.</div>';
+            return;
+        }
+        
+        container.innerHTML = pastWeeks.sort((a,b) => b.id - a.id).map(w => {
+            const d = new Date(w.date);
+            const dateStr = `${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getFullYear()}`;
+            const isSuccess = w.total >= w.meta;
+            const color = isSuccess ? 'var(--success)' : 'var(--danger)';
+            return `
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:10px; border-bottom:1px solid var(--border);">
+                    <div>
+                        <div style="font-weight:bold; font-size:13px; color:var(--text-main);">${dateStr}</div>
+                        <div style="font-size:11px; color:var(--text-sec);">${w.count} registros</div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-weight:900; font-size:14px; color:${color};">S/. ${w.total.toFixed(2)}</div>
+                        <div style="font-size:10px; color:var(--text-sec);">Meta: S/. ${w.meta}</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    async function exportarBackupLocal() {
+        const data = JSON.stringify(dbRutas);
+        const fileName = `GoBackup_Semana_${getLunesSemanaActual()}.json`;
+        
+        // Uso de File System Access API para guardar en carpeta predefinida (si soporta)
+        if (window.showDirectoryPicker) {
+            try {
+                if (!dirHandle) {
+                    dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+                    // Guardamos la elección para no volver a preguntar
+                    const dbReq = indexedDB.open('GoBackupDB', 1);
+                    dbReq.onsuccess = (e) => {
+                        const db = e.target.result;
+                        const tx = db.transaction('handles', 'readwrite');
+                        tx.objectStore('handles').put(dirHandle, 'dir');
+                    };
+                } else {
+                    // Validar permisos actuales
+                    if ((await dirHandle.queryPermission({ mode: 'readwrite' })) !== 'granted') {
+                        if ((await dirHandle.requestPermission({ mode: 'readwrite' })) !== 'granted') {
+                            throw new Error('Permiso denegado por el usuario.');
+                        }
+                    }
+                }
+                const fileHandle = await dirHandle.getFileHandle(fileName, { create: true });
+                const writable = await fileHandle.createWritable();
+                await writable.write(data);
+                await writable.close();
+                
+                playSound('success');
+                mostrarFeedback("Backup guardado en tu carpeta.");
+                cerrarModalLocal();
+                return;
+            } catch (err) {
+                console.error("Error API Carpetas", err);
+                dirHandle = null; // Reiniciar si el usuario canceló o hubo un problema
+            }
+        }
+        
+        // Fallback Tradicional (Descarga Automática para Móviles/iOS/Otros navegadores)
+        const blob = new Blob([data], {type: "application/json"});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        a.rel = "noopener noreferrer";
+        a.click();
+        URL.revokeObjectURL(url);
+        playSound('success');
+        mostrarFeedback("Backup descargado.");
+        cerrarModalLocal();
+    }
+
+    function importarBackupLocal(input) {
+        const file = input.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const json = JSON.parse(e.target.result);
+                if (confirm("⚠️ ADVERTENCIA ⚠️\n\nEsto BORRARÁ TODOS LOS CÓDIGOS actuales que tengas registrados y cargará la copia de seguridad seleccionada.\n\n¿Estás seguro de continuar?")) {
+                    dbRutas = json;
+                    actualizarStorage(false);
+                    renderHistorial();
+                    playSound('success');
+                    alert("✅ Restauración completada con éxito.");
+                    cerrarModalLocal();
+                }
+            } catch (err) {
+                alert("Archivo de backup inválido.");
+                playSound('error');
+            }
+        };
+        reader.onerror = () => {
+            alert("Error al leer el archivo.");
+            playSound('error');
+        };
+        reader.readAsText(file);
+        input.value = '';
+    }
+
+    // --- FUNCIONES UI ---
+    function formatearFecha(fechaISO) {
+        if(!fechaISO) return "";
+        const dias = ["DOM", "LUN", "MAR", "MIE", "JUE", "VIE", "SAB"];
+        const [a, m, d] = fechaISO.split('-');
+        const fechaObj = new Date(a, m - 1, d);
+        return `${dias[fechaObj.getDay()]} ${d}/${m}`;
+    }
+
+    function toggleDrawer() {
+        const notch = document.getElementById('dynamic-notch');
+        if (notch && notch.classList.contains('visible')) {
+            notch.classList.remove('visible');
+        }
+
+        const d = document.getElementById('main-drawer');
+        const o = document.getElementById('drawer-overlay');
+        const isOpen = d.classList.contains('open');
+        
+        if (!isOpen) {
+            d.classList.add('open'); o.classList.add('active');
+            renderHistorial();
+        } else {
+            d.classList.remove('open'); o.classList.remove('active');
+        }
+        playSound('click');
+    }
+
+    function toggleManualSheet() {
+        const s = document.getElementById('manual-sheet');
+        const o = document.getElementById('manual-overlay');
+        const isActive = s.classList.contains('active');
+        
+        if (!isActive) {
+            s.classList.add('active'); o.classList.add('active');
+        } else {
+            s.classList.remove('active'); o.classList.remove('active');
+            document.getElementById('manualInput').blur();
+        }
+        playSound('click');
+    }
+
+    function mostrarFeedback(msg) {
+        const pill = document.getElementById('autosave-pill');
+        document.getElementById('pill-label').innerText = msg;
+        pill.classList.add('show');
+        setTimeout(() => pill.classList.remove('show'), 2000);
+    }
+
+    function toggleSubDetails(id) {
+        const el = document.getElementById(id);
+        if (el.style.display === 'none' || el.style.display === '') {
+            el.style.display = 'block';
+            playSound('click');
+        } else {
+            el.style.display = 'none';
+        }
+    }
+
+    function copyFallback(texto, cantidad) {
+        const textArea = document.createElement("textarea");
+        textArea.value = texto;
+        textArea.style.position = "fixed";
+        textArea.style.left = "-9999px";
+        textArea.style.top = "0";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        
+        try {
+            const successful = document.execCommand('copy');
+            if(successful) {
+                if(cantidad > 1) mostrarFeedback(`✅ ¡${cantidad} CÓDIGOS COPIADOS!`);
+                else mostrarFeedback(`✅ Copiado: ${texto}`);
+                playSound('success');
+            } else {
+                alert("No se pudo copiar automáticamente.");
+            }
+        } catch (err) {
+            console.error('Fallback error', err);
+            alert("Error al copiar.");
+        }
+        document.body.removeChild(textArea);
+    }
+
+    function copiarCodigo(codigo) {
+        if (!codigo) return;
+        const cleanCode = String(codigo).trim();
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(cleanCode).then(() => {
+                mostrarFeedback(`✅ Copiado: ${cleanCode}`);
+                playSound('success');
+            }).catch(err => copyFallback(cleanCode, 1));
+        } else {
+            copyFallback(cleanCode, 1);
+        }
+    }
+
+    function copiarBloque(codigosStr) {
+        if(!codigosStr) return;
+        const texto = codigosStr.split('|').join('\n');
+        const cantidad = codigosStr.split('|').length;
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(texto).then(() => {
+                mostrarFeedback(`✅ ¡${cantidad} CÓDIGOS COPIADOS!`);
+                playSound('success');
+            }).catch(err => copyFallback(texto, cantidad));
+        } else {
+            copyFallback(texto, cantidad);
+        }
+    }
+
+    window.copiarCodigoManual = function(codigo) {
+        const text = sufijoActual ? `${codigo} - ${sufijoActual}` : codigo;
+        copiarCodigo(text);
+    };
+
+    window.copiarBloqueManual = function(codigosStr) {
+        if(!codigosStr) return;
+        const codigos = codigosStr.split('|');
+        const text = codigos.map(c => sufijoActual ? `${c} - ${sufijoActual}` : c).join('\n');
+        
+        const cantidad = codigos.length;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(() => {
+                mostrarFeedback(`✅ ¡${cantidad} CÓDIGOS COPIADOS!`);
+                playSound('success');
+            }).catch(err => copyFallback(text, cantidad));
+        } else {
+            copyFallback(text, cantidad);
+        }
+    };
+
+    window.openSuffixModal = function() {
+        playSound('click');
+        document.getElementById('suffix-input-modal').value = sufijoActual;
+        document.getElementById('suffix-overlay').classList.add('active');
+    };
+
+    window.closeSuffixModal = function() {
+        document.getElementById('suffix-overlay').classList.remove('active');
+    };
+
+    window.saveSuffix = function() {
+        sufijoActual = document.getElementById('suffix-input-modal').value.trim();
+        localStorage.setItem('goSufijo', sufijoActual);
+        const displayEl = document.getElementById('suffix-display');
+        if(displayEl) displayEl.innerText = sufijoActual || "Sin distrito";
+        closeSuffixModal();
+        playSound('success');
+        mostrarFeedback("Distrito guardado");
+    };
+
+    window.borrarTodosExcels = function() {
+        if(confirm("¿Eliminar todas las planillas guardadas en memoria?")) {
+            dbExcels = [];
+            localStorage.setItem('excelGoRaw', JSON.stringify(dbExcels));
+            datosAuditoriaRender = null;
+            localStorage.removeItem('excelGoV5');
+            playSound('delete');
+            mostrarFeedback("Planillas Borradas");
+            if(modoSeleccionActivo) {
+                verResumenSeleccionado();
+            } else {
+                mostrarDetalles(); 
+            }
+        }
+    };
+
+    function seleccionarTodo() {
+        playSound('click');
+        const checks = document.querySelectorAll('.day-checkbox');
+        const algunDesmarcado = Array.from(checks).some(c => !c.checked);
+        checks.forEach(c => c.checked = algunDesmarcado);
+    }
+
+    function verResumenSeleccionado() {
+        playSound('click');
+        const checks = document.querySelectorAll('.day-checkbox:checked');
+        if (checks.length === 0) return alert("⚠️ Selecciona días en la lista primero.");
+        
+        modoSeleccionActivo = true;
+        
+        let itemsPedidosScan = [], itemsPedidosMan = [];
+        let itemsCasosScan = [], itemsCasosMan = [];
+        let mTotal = 0;
+
+        checks.forEach(c => {
+            const f = c.value;
+            if(dbRutas[f]) {
+                dbRutas[f].forEach(r => {
+                    if(!r.esRepetido) {
+                        let precio = r.precioEspecial ? parseFloat(r.precioEspecial) : precioPorPedido;
+                        mTotal += precio;
+                        let itemObj = { codigo: r.numero, precio: precio.toFixed(2), esManual: r.esManual, tipo: r.tipo, fecha: formatearFecha(f) };
+                        
+                        if(r.tipo === 'PEDIDO') {
+                            if(r.esManual) itemsPedidosMan.push(itemObj);
+                            else itemsPedidosScan.push(itemObj);
+                        } else {
+                            if(r.esManual) itemsCasosMan.push(itemObj);
+                            else itemsCasosScan.push(itemObj);
+                        }
+                    }
+                });
+            }
+        });
+
+        mostrarModalGenerico(itemsPedidosScan, itemsPedidosMan, itemsCasosScan, itemsCasosMan, mTotal);
+    }
+
+    function guardarRuta(numero, tipo, fechaUsar, precioEsp = null, esManual = false) {
+        if (!dbRutas[fechaUsar]) dbRutas[fechaUsar] = [];
+        let esDuplicado = false;
+        
+        for (let f in dbRutas) { 
+            if (dbRutas[f].some(r => r.numero === numero && r.tipo === tipo && !r.esRepetido)) { 
+                esDuplicado = true; break; 
+            }
+        }
+
+        if (!esDuplicado && dbArchivoDomingo && dbArchivoDomingo.items) {
+            if (dbArchivoDomingo.items.some(r => r.codigo === numero && r.tipo === tipo)) {
+                esDuplicado = true;
+            }
+        }
+
+        if (esManual && dbRutas[fechaUsar].some(r => r.numero === numero && r.tipo === tipo)) esDuplicado = true;
+
+        if(esDuplicado) playSound('error'); 
+        else if(esManual) playSound('success');
+
+        dbRutas[fechaUsar].push({ 
+            id: Date.now() + Math.random(), 
+            numero, tipo, 
+            esRepetido: esDuplicado, 
+            precioEspecial: precioEsp, esManual: esManual,
+            nota: null,
+            notaMasiva: null
+        });
+        
+        actualizarStorage(true);
+    }
+
+    function calcularPromedio() {
+        let diasActivos = 0;
+        let totalHistorico = 0;
+        for (let f in dbRutas) {
+            let totalDia = 0;
+            dbRutas[f].forEach(r => {
+                if (!r.esRepetido) {
+                    totalDia += r.precioEspecial ? parseFloat(r.precioEspecial) : precioPorPedido;
+                }
+            });
+            if (totalDia > 0) {
+                diasActivos++;
+                totalHistorico += totalDia;
+            }
+        }
+        const promedio = diasActivos > 0 ? (totalHistorico / diasActivos) : 0;
+        const divisor = diasActivos === 7 ? 7 : 6;
+        const targetPromedio = metaSemanal / divisor;
+        
+        const avgEl = document.getElementById('stat-promedio');
+        const bannerEl = document.getElementById('average-banner');
+        const targetText = document.getElementById('avg-target-text');
+        
+        if(avgEl) avgEl.innerText = `S/. ${promedio.toFixed(2)}`;
+        if(targetText) targetText.innerText = `Meta: S/. ${targetPromedio.toFixed(2)}/día`;
+        
+        if (bannerEl) {
+            bannerEl.classList.remove('avg-good', 'avg-bad');
+            if (promedio >= targetPromedio) {
+                bannerEl.classList.add('avg-good');
+            } else if (promedio > 0) {
+                bannerEl.classList.add('avg-bad');
+            }
+        }
+        
+        const wrapper = document.getElementById('average-details-wrapper');
+        if (wrapper && wrapper.classList.contains('open')) {
+            renderAverageCharts();
+        }
+    }
+
+    function toggleAverageDetails() {
+        const wrapper = document.getElementById('average-details-wrapper');
+        if (wrapper.classList.contains('open')) {
+            wrapper.classList.remove('open');
+        } else {
+            wrapper.classList.add('open');
+            renderAverageCharts();
+        }
+        playSound('click');
+    }
+
+    function renderAverageCharts() {
+        // Preparar datos
+        const allDates = Object.keys(dbRutas).sort().reverse();
+        const datesAsc = [...allDates].reverse();
+        const chartDates = datesAsc.slice(-7); 
+        
+        const diasSemana = ["DOM", "LUN", "MAR", "MIE", "JUE", "VIE", "SAB"];
+        const barLabels = chartDates.map(d => {
+            const [y, m, day] = d.split('-');
+            const dateObj = new Date(y, m - 1, day);
+            return diasSemana[dateObj.getDay()];
+        });
+
+        const chartCounts = chartDates.map(d => dbRutas[d].filter(r => !r.esRepetido).length);
+
+        // Line Chart (Historial Semanal)
+        const ctxHistory = document.getElementById('historyChart');
+        if(ctxHistory) {
+            if (historyChartInstance) historyChartInstance.destroy();
+            const ctx = ctxHistory.getContext('2d');
+            const gradientFill = ctx.createLinearGradient(0, 0, 0, 150);
+            gradientFill.addColorStop(0, 'rgba(14, 165, 233, 0.4)');
+            gradientFill.addColorStop(1, 'rgba(14, 165, 233, 0.0)');
+
+            const isDark = document.body.classList.contains('dark-mode');
+            const gridColor = isDark ? '#27272a' : '#f1f5f9';
+            const tickColor = isDark ? '#94a3b8' : '#64748b';
+
+            historyChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: barLabels,
+                    datasets: [{
+                        label: 'Registros',
+                        data: chartCounts,
+                        borderColor: '#0ea5e9',
+                        backgroundColor: gradientFill,
+                        borderWidth: 3,
+                        pointBackgroundColor: '#ffffff',
+                        pointBorderColor: '#0ea5e9',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: { duration: 1000, easing: 'easeOutQuart' },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { color: tickColor, font: {size: 10, family: '-apple-system', weight:'600'} } },
+                        y: { border: {display: false}, grid: {color: gridColor, borderDash: [5, 5]}, ticks: { color: tickColor, font: {size: 10, family: '-apple-system'}, maxTicksLimit: 5, beginAtZero: true } }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { backgroundColor: 'rgba(15,23,42,0.9)', padding: 10, cornerRadius: 8, displayColors: false, bodyFont: {family: '-apple-system', size: 13, weight: 'bold'} }
+                    },
+                    interaction: {
+                        intersect: false,
+                        mode: 'index',
+                    },
+                }
+            });
+        }
+
+        // Doughnut Chart (Distribución por Día)
+        const chartEarnings = chartDates.map(d => {
+            return dbRutas[d].reduce((sum, r) => sum + (!r.esRepetido ? (r.precioEspecial ? parseFloat(r.precioEspecial) : precioPorPedido) : 0), 0);
+        });
+        
+        const legendLabels = chartDates.map((d, i) => {
+            return `${barLabels[i]} (${chartCounts[i]})`;
+        });
+
+        const ctxDetails = document.getElementById('detailsChart');
+        if(ctxDetails) {
+            if (detailsChartInstance) detailsChartInstance.destroy();
+            const ctx = ctxDetails.getContext('2d');
+            const isDark = document.body.classList.contains('dark-mode');
+            const borderColor = isDark ? '#000000' : '#ffffff';
+            const legendColor = isDark ? '#f1f5f9' : '#64748b';
+
+            detailsChartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: legendLabels,
+                    datasets: [{
+                        data: chartEarnings,
+                        backgroundColor: ['#0ea5e9', '#f59e0b', '#8b5cf6', '#f43f5e', '#10b981', '#6366f1', '#ec4899'],
+                        borderWidth: 2,
+                        borderColor: borderColor,
+                        hoverOffset: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '75%',
+                    animation: { animateScale: true, animateRotate: true, duration: 1500, easing: 'easeOutQuart' },
+                    plugins: {
+                        legend: { display: true, position: 'right', labels: { color: legendColor, boxWidth: 12, usePointStyle: true, pointStyle: 'circle', font: { size: 11, family: '-apple-system', weight:'600' } } },
+                        tooltip: { backgroundColor: 'rgba(15,23,42,0.9)', padding: 10, cornerRadius: 8, bodyFont: {family: '-apple-system', weight: 'bold'}, callbacks: { label: function(context) { return ' S/. ' + context.raw.toFixed(2); } } }
+                    }
+                }
+            });
+        }
+
+        // Urgent Notes (Solo muestra r.nota, NO r.notaMasiva)
+        const notesContainer = document.getElementById('urgent-notes-container');
+        if(notesContainer) {
+            let notesHtml = '';
+            for(let f in dbRutas) {
+                dbRutas[f].forEach(r => {
+                    if(r.nota) {
+                        notesHtml += `
+                            <div class="note-urgent-item" style="display:flex; justify-content:space-between; align-items:center;">
+                                <div onclick="goToSearchResult('${f}', ${r.id})" style="flex:1;">
+                                    <div style="font-weight:bold; color:var(--text-main); margin-bottom:2px;">${r.numero} <span style="font-size:10px; color:var(--text-sec);">(${formatearFecha(f)})</span></div>
+                                    <div style="color:var(--text-sec); word-wrap: break-word; white-space: normal; font-size: 13px; line-height: 1.4; margin-top: 4px;">${r.nota}</div>
+                                </div>
+                                <button onclick="event.stopPropagation(); copiarCodigo('${r.numero}')" style="background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:8px; font-size:14px; cursor:pointer; box-shadow:0 1px 2px rgba(0,0,0,0.05);">📋</button>
+                            </div>
+                        `;
+                    }
+                });
+            }
+            if(notesHtml) {
+                notesContainer.innerHTML = `<h4 style="margin:15px 0 10px 0; font-size:14px; color:var(--danger);">⚠️ Notas Urgentes</h4>` + notesHtml;
+                notesContainer.style.display = 'block';
+            } else {
+                notesContainer.innerHTML = '';
+                notesContainer.style.display = 'none';
+            }
+        }
+    }
+
+    function toggleSearch() {
+        const overlay = document.getElementById('search-overlay');
+        const bar = document.getElementById('floating-search-bar');
+        const input = document.getElementById('global-search');
+        const results = document.getElementById('search-results');
+        
+        if (bar.classList.contains('active')) {
+            bar.classList.remove('active');
+            overlay.classList.remove('active');
+            input.value = '';
+            results.style.display = 'none';
+        } else {
+            bar.classList.add('active');
+            overlay.classList.add('active');
+            input.focus();
+        }
+        playSound('click');
+    }
+
+    function handleGlobalSearch(e) {
+        const term = e.target.value.trim().toLowerCase();
+        const resultsContainer = document.getElementById('search-results');
+        
+        if (term.length < 2) {
+            resultsContainer.style.display = 'none';
+            return;
+        }
+
+        let matches = [];
+        for (let f in dbRutas) {
+            dbRutas[f].forEach(r => {
+                if (r.numero.toLowerCase().includes(term)) {
+                    matches.push({ fecha: f, item: r });
+                }
+            });
+        }
+
+        if (matches.length > 0) {
+            resultsContainer.innerHTML = matches.map(m => `
+                <div class="search-result-item" onclick="goToSearchResult('${m.fecha}', ${m.item.id})">
+                    <div style="font-weight:bold; color:var(--text-main); font-family:monospace;">${m.item.numero}</div>
+                    <div style="font-size:11px; color:var(--text-sec);">${formatearFecha(m.fecha)} - ${m.item.tipo}</div>
+                </div>
+            `).join('');
+            resultsContainer.style.display = 'flex';
+            resultsContainer.style.flexDirection = 'column';
+        } else {
+            resultsContainer.innerHTML = `<div style="padding:10px; color:var(--text-sec); font-size:12px; text-align:center;">No se encontraron resultados</div>`;
+            resultsContainer.style.display = 'flex';
+            resultsContainer.style.flexDirection = 'column';
+        }
+    }
+
+    function goToSearchResult(fecha, id) {
+        fechaSeleccionada = fecha;
+        renderizarTodo(true);
+        
+        const overlay = document.getElementById('search-overlay');
+        const bar = document.getElementById('floating-search-bar');
+        const input = document.getElementById('global-search');
+        const results = document.getElementById('search-results');
+        
+        bar.classList.remove('active');
+        overlay.classList.remove('active');
+        input.value = '';
+        results.style.display = 'none';
+        
+        const wrapper = document.getElementById('average-details-wrapper');
+        if (wrapper && wrapper.classList.contains('open')) {
+            wrapper.classList.remove('open');
+        }
+
+        setTimeout(() => {
+            const cards = document.querySelectorAll('.card-item');
+            cards.forEach(card => {
+                if (card.getAttribute('data-id') == id) {
+                    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    card.classList.add('highlight-item');
+                    setTimeout(() => card.classList.remove('highlight-item'), 3000);
+                }
+            });
+        }, 300);
+    }
+
+    function actualizarStorage(shouldScroll = false) {
+        try {
+            localStorage.setItem('rutasGoV3', JSON.stringify(dbRutas));
+        } catch (e) {
+            console.error("Error saving to localStorage", e);
+            alert("Error al guardar los datos. Posible falta de espacio.");
+        }
+        renderizarTodo(shouldScroll);
+    }
+
+    // --- LÓGICA LONG PRESS (EDITAR) ---
+    function startPress(e, id) {
+        const touch = e.touches ? e.touches[0] : e;
+        startX = touch.clientX;
+        startY = touch.clientY;
+        pressTimer = setTimeout(() => {
+            openEditModal(id);
+        }, 550); 
+    }
+
+    function cancelPress() {
+        clearTimeout(pressTimer);
+    }
+
+    function handleMove(e) {
+        if (!pressTimer) return;
+        const touch = e.touches ? e.touches[0] : e;
+        const diffX = Math.abs(touch.clientX - startX);
+        const diffY = Math.abs(touch.clientY - startY);
+        if (diffX > 10 || diffY > 10) {
+            clearTimeout(pressTimer);
+        }
+    }
+
+    function setEditTipo(tipo) {
+        tipoEditActual = tipo;
+        document.getElementById('edit-btn-pedido').style.background = tipo === 'PEDIDO' ? 'var(--primary)' : 'var(--bg)';
+        document.getElementById('edit-btn-pedido').style.color = tipo === 'PEDIDO' ? 'var(--bg)' : 'var(--text-sec)';
+        document.getElementById('edit-btn-caso').style.background = tipo === 'CASO' ? 'var(--accent)' : 'var(--bg)';
+        document.getElementById('edit-btn-caso').style.color = tipo === 'CASO' ? 'white' : 'var(--text-sec)';
+    }
+
+    function openEditModal(id) {
+        if(document.getElementById('edit-overlay').classList.contains('active')) return;
+        
+        playSound('click');
+        if (navigator.vibrate) navigator.vibrate(20);
+        currentEditingId = id;
+        const rutas = dbRutas[fechaSeleccionada] || [];
+        const item = rutas.find(r => r.id === id);
+        
+        if(!item) return;
+
+        document.getElementById('edit-codigo').value = item.numero;
+        setEditTipo(item.tipo);
+        document.getElementById('edit-precio').value = item.precioEspecial || '';
+        document.getElementById('edit-nota').value = item.nota || '';
+        
+        document.getElementById('edit-overlay').classList.add('active');
+    }
+
+    function closeEditModal() {
+        document.getElementById('edit-overlay').classList.remove('active');
+        currentEditingId = null;
+    }
+
+    function guardarEdicion() {
+        if(!currentEditingId) return;
+        const codInput = document.getElementById('edit-codigo').value.trim();
+        const preInput = document.getElementById('edit-precio').value.trim();
+        const notInput = document.getElementById('edit-nota').value.trim();
+        
+        if(!codInput) return alert("El código no puede estar vacío");
+
+        const rutas = dbRutas[fechaSeleccionada];
+        const itemIndex = rutas.findIndex(r => r.id === currentEditingId);
+        
+        if(itemIndex > -1) {
+            if(rutas[itemIndex].numero !== codInput || rutas[itemIndex].tipo !== tipoEditActual) {
+                let esDuplicado = rutas.some(r => r.numero === codInput && r.tipo === tipoEditActual && r.id !== currentEditingId);
+                rutas[itemIndex].numero = codInput;
+                rutas[itemIndex].esRepetido = esDuplicado;
+            }
+            
+            rutas[itemIndex].tipo = tipoEditActual;
+            rutas[itemIndex].precioEspecial = preInput !== "" ? preInput : null;
+            rutas[itemIndex].nota = notInput !== "" ? notInput : null;
+            
+            playSound('success');
+            actualizarStorage(false);
+            closeEditModal();
+            mostrarFeedback("Cambios guardados");
+        }
+    }
+
+    // --- LÓGICA LONG PRESS (EDITAR DÍA COMPLETO) ---
+    window.startDayPress = function(e, f) {
+        wasDayLongPressed = false;
+        const touch = e.touches ? e.touches[0] : e;
+        dayStartX = touch.clientX;
+        dayStartY = touch.clientY;
+        dayPressTimer = setTimeout(() => {
+            wasDayLongPressed = true;
+            openDayEditModal(f);
+        }, 550); 
+    };
+
+    window.cancelDayPress = function() {
+        clearTimeout(dayPressTimer);
+    };
+
+    window.handleDayMove = function(e) {
+        if (!dayPressTimer) return;
+        const touch = e.touches ? e.touches[0] : e;
+        const diffX = Math.abs(touch.clientX - dayStartX);
+        const diffY = Math.abs(touch.clientY - dayStartY);
+        if (diffX > 10 || diffY > 10) {
+            clearTimeout(dayPressTimer);
+        }
+    };
+
+    window.handleDayClick = function(f) {
+        if (wasDayLongPressed) return;
+        seleccionarDia(f);
+    };
+
+    function openDayEditModal(f) {
+        playSound('click');
+        if (navigator.vibrate) navigator.vibrate(20);
+        currentEditingDay = f;
+        document.getElementById('day-edit-precio').value = '';
+        document.getElementById('day-edit-nota').value = '';
+        
+        const btnRevert = document.getElementById('btn-revert-day');
+        if (dayEditBackup && dayEditBackup.date === f) {
+            btnRevert.style.display = 'block';
+        } else {
+            btnRevert.style.display = 'none';
+        }
+        
+        document.getElementById('day-edit-overlay').classList.add('active');
+    }
+
+    window.closeDayEditModal = function() {
+        document.getElementById('day-edit-overlay').classList.remove('active');
+        currentEditingDay = null;
+    };
+
+    window.guardarEdicionDia = function() {
+        if(!currentEditingDay) return;
+        const preInput = document.getElementById('day-edit-precio').value.trim();
+        const notInput = document.getElementById('day-edit-nota').value.trim();
+        
+        if(preInput === "" && notInput === "") {
+            return alert("Debes ingresar un precio o una nota para aplicar.");
+        }
+
+        if(dbRutas[currentEditingDay]) {
+            // Crear respaldo antes de modificar
+            dayEditBackup = {
+                date: currentEditingDay,
+                data: JSON.parse(JSON.stringify(dbRutas[currentEditingDay]))
+            };
+
+            dbRutas[currentEditingDay].forEach(r => {
+                if(preInput !== "") r.precioEspecial = preInput;
+                if(notInput !== "") r.notaMasiva = notInput;
+            });
+            playSound('success');
+            actualizarStorage(false);
+            closeDayEditModal();
+            mostrarFeedback("Día actualizado");
+            if(document.getElementById('main-drawer').classList.contains('open')) {
+                renderHistorial(); 
+            }
+        }
+    };
+
+    window.revertirEdicionDia = function() {
+        if (!dayEditBackup || dayEditBackup.date !== currentEditingDay) return;
+        if (confirm("¿Seguro que deseas deshacer el último cambio masivo de este día?")) {
+            dbRutas[currentEditingDay] = JSON.parse(JSON.stringify(dayEditBackup.data));
+            dayEditBackup = null; // Consumir el respaldo
+            playSound('success');
+            actualizarStorage(false);
+            closeDayEditModal();
+            mostrarFeedback("Cambios revertidos");
+            if(document.getElementById('main-drawer').classList.contains('open')) {
+                renderHistorial(); 
+            }
+        }
+    };
+
+    function renderizarTodo(shouldScroll = false) {
+        const contenedor = document.getElementById('lista-items');
+        const rutas = dbRutas[fechaSeleccionada] || [];
+        
+        const dateEl = document.getElementById('viewing-date-top');
+        dateEl.innerText = formatearFecha(fechaSeleccionada) || "HOY";
+        
+        let p = 0, c = 0, mTotal = 0, hayRepetidos = false;
+        rutas.forEach(r => {
+            if(!r.esRepetido) {
+                let precio = r.precioEspecial ? parseFloat(r.precioEspecial) : precioPorPedido;
+                if(r.tipo === 'CASO') c++; else p++;
+                mTotal += precio;
+            } else {
+                hayRepetidos = true;
+            }
+        });
+
+        dbGanancias[fechaSeleccionada] = mTotal;
+        try {
+            localStorage.setItem('rutasGoGanancias', JSON.stringify(dbGanancias));
+        } catch(e) {}
+
+        document.getElementById('stat-pedidos').innerText = p;
+        document.getElementById('stat-casos').innerText = c;
+        document.getElementById('stat-monto').innerText = `S/.${Math.round(mTotal)}`;
+        document.getElementById('duplicate-banner').style.display = hayRepetidos ? 'flex' : 'none';
+
+        if (rutas.length === 0) {
+            contenedor.innerHTML = `<div class="empty-state"><div style="font-size:40px; margin-bottom:10px;">📷</div>Sin registros para hoy</div>`;
+        } else {
+            contenedor.innerHTML = "";
+            rutas.forEach((r, idx) => {
+                const div = document.createElement('div');
+                div.className = `card-item entering ${r.esRepetido ? 'repetido' : ''}`;
+                div.setAttribute('data-id', r.id);
+                
+                div.ontouchstart = (e) => startPress(e, r.id);
+                div.ontouchend = cancelPress;
+                div.ontouchcancel = cancelPress;
+                div.ontouchmove = handleMove;
+                div.onmousedown = (e) => { if(e.button === 0) startPress(e, r.id); };
+                div.onmouseup = cancelPress;
+                div.onmouseleave = cancelPress;
+                div.onmousemove = handleMove;
+                div.oncontextmenu = (e) => { e.preventDefault(); openEditModal(r.id); return false; };
+
+                let tipoBadge = r.tipo === 'CASO' ? 'caso' : 'pedido';
+                let precioMos = r.precioEspecial ? parseFloat(r.precioEspecial).toFixed(2) : precioPorPedido.toFixed(2);
+                let manualTag = r.esManual ? `<span style="margin-left:6px; font-size:12px;">✏️</span>` : '';
+                
+                let noteHtml = r.nota ? `<div style="font-size:11px; color:var(--text-sec); opacity:0.6; margin-top:4px; font-weight:600; display:flex; align-items:center; gap:4px;"><span>📝</span> <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px;">${r.nota}</span></div>` : '';
+                
+                let notaMasivaTag = r.notaMasiva ? `<span style="font-size:10px; font-weight:800; color:var(--text-warn); background:var(--bg-warn); padding:2px 6px; border-radius:4px; border:1px solid var(--border-warn); animation: blinkText 1.5s infinite ease-in-out; margin-left:6px;">${r.notaMasiva}</span>` : '';
+
+                div.innerHTML = `
+                    <div class="card-info" style="gap:2px; flex:1; min-width:0;">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span style="color:var(--text-sec); opacity:0.5; font-size:14px; font-weight:700;">#${idx+1}</span>
+                            <div class="code-text" style="font-family:monospace; font-size:17px; font-weight:700; letter-spacing:0.5px;">${r.numero}</div>
+                        </div>
+                        <div class="meta-text" style="padding-left:26px; display:flex; flex-direction:column; align-items:flex-start; gap:2px;">
+                            <div style="display:flex; align-items:center;">
+                                <span class="badge ${tipoBadge}" style="border-radius:6px; font-size:10px;">${r.tipo}</span>
+                                ${manualTag}
+                                ${notaMasivaTag}
+                            </div>
+                            ${noteHtml}
+                        </div>
+                    </div>
+                    <div style="display:flex; align-items:center; gap: 12px;">
+                        <div style="font-weight:800; color:var(--success); font-size:14px;">S/.${precioMos}</div>
+                        <button class="btn-delete" aria-label="Eliminar registro" style="border-radius:12px; font-weight:bold; flex-shrink:0;" onclick="event.stopPropagation(); eliminarRuta(${r.id})">✕</button>
+                    </div>
+                `;
+                contenedor.appendChild(div);
+            });
+        }
+
+        calcularPromedio();
+
+        if (shouldScroll) {
+             document.getElementById('main-list-area').scrollTop = 0;
+        }
+    }
+
+    function renderHistorial() {
+        const lista = document.getElementById('lista-historial');
+        lista.innerHTML = "";
+        
+        const allDates = Object.keys(dbRutas).sort().reverse();
+        
+        allDates.forEach(f => {
+            const item = document.createElement('div');
+            item.className = `history-item ${f === fechaSeleccionada ? 'active' : ''}`;
+            
+            const count = dbRutas[f].length;
+            item.innerHTML = `
+                <div style="display:flex; align-items:center; gap:10px; flex:1" 
+                     ontouchstart="startDayPress(event, '${f}')" 
+                     ontouchend="cancelDayPress()" 
+                     ontouchcancel="cancelDayPress()" 
+                     ontouchmove="handleDayMove(event)" 
+                     onmousedown="startDayPress(event, '${f}')" 
+                     onmouseup="cancelDayPress()" 
+                     onmouseleave="cancelDayPress()" 
+                     onmousemove="handleDayMove(event)" 
+                     onclick="handleDayClick('${f}')">
+                    <input type="checkbox" class="day-checkbox" value="${f}" ${f === fechaSeleccionada ? 'checked' : ''} onclick="event.stopPropagation()" style="width:16px; height:16px;">
+                    <div>
+                        <div style="font-weight:700; font-size:14px; color:var(--text-main);">${formatearFecha(f)}</div>
+                        <div style="color:var(--text-sec); font-size:11px; font-weight:600;">${count} registros</div>
+                    </div>
+                </div>
+                <button onclick="borrarDia(event, '${f}')" aria-label="Borrar día" style="background:none; border:none; color:var(--danger); font-weight:700; font-size:16px; padding:8px;">✕</button>
+            `;
+            lista.appendChild(item);
+        });
+    }
+
+    function seleccionarDia(f) {
+        fechaSeleccionada = f;
+        renderizarTodo();
+        toggleDrawer();
+    }
+
+    function borrarDia(e, f) {
+        e.stopPropagation();
+        if(confirm(`¿Seguro que deseas eliminar todos los registros del ${formatearFecha(f)}?`)) {
+            delete dbRutas[f];
+            if(f === fechaSeleccionada) fechaSeleccionada = getLocalISO();
+            actualizarStorage(false);
+            renderHistorial();
+        }
+    }
+
+    function vaciarTodo() {
+        if(confirm("⚠ ¿ESTÁS SEGURO? Se vaciará el panel principal y todo el historial.")) {
+            dbRutas = {};
+            dbExcels = [];
+            localStorage.removeItem('rutasGoV3');
+            localStorage.removeItem('excelGoV5');
+            localStorage.removeItem('excelGoRaw');
+            datosAuditoriaRender = null;
+            
+            fechaSeleccionada = getLocalISO();
+            actualizarStorage(false); 
+            renderHistorial(); 
+            toggleDrawer();
+        }
+    }
+
+    function eliminarRuta(id) {
+        if(confirm("¿Seguro que deseas eliminar permanentemente este registro?")) {
+            playSound('delete');
+            dbRutas[fechaSeleccionada] = dbRutas[fechaSeleccionada].filter(r => r.id !== id);
+            actualizarStorage(false);
+        }
+    }
+
+    function eliminarRepetidos() {
+        if(confirm("¿Seguro que deseas limpiar todos los códigos repetidos de este día?")) {
+            playSound('delete');
+            dbRutas[fechaSeleccionada] = dbRutas[fechaSeleccionada].filter(r => !r.esRepetido);
+            actualizarStorage(false);
+        }
+    }
+
+    function mostrarDetalles() {
+        modoSeleccionActivo = false; 
+        
+        const rutas = dbRutas[fechaSeleccionada] || [];
+        let itemsPedidosScan = [], itemsPedidosMan = [];
+        let itemsCasosScan = [], itemsCasosMan = [];
+        let mTotal = 0;
+
+        rutas.forEach(r => {
+            if(!r.esRepetido) {
+                let precio = r.precioEspecial ? parseFloat(r.precioEspecial) : precioPorPedido;
+                mTotal += precio;
+                let itemObj = { codigo: r.numero, precio: precio.toFixed(2), esManual: r.esManual, tipo: r.tipo, fecha: formatearFecha(fechaSeleccionada) };
+                
+                if(r.tipo === 'PEDIDO') {
+                    if(r.esManual) itemsPedidosMan.push(itemObj);
+                    else itemsPedidosScan.push(itemObj);
+                } else {
+                    if(r.esManual) itemsCasosMan.push(itemObj);
+                    else itemsCasosScan.push(itemObj);
+                }
+            }
+        });
+        
+        mostrarModalGenerico(itemsPedidosScan, itemsPedidosMan, itemsCasosScan, itemsCasosMan, mTotal);
+    }
+
+    function mostrarModalGenerico(pScan, pMan, cScan, cMan, mTotal) {
+        datosComparacion = [...pScan, ...pMan, ...cScan, ...cMan];
+        document.getElementById('total-pago-full').innerText = `S/. ${mTotal.toFixed(2)}`;
+
+        const generarListaHTML = (items, isManual) => {
+            if (items.length === 0) return '<div style="padding:16px; text-align:center; color:var(--text-sec); font-size:13px; font-weight:600;">Ningún registro</div>';
+            
+            const todosCodigos = items.map(i => i.codigo).join('|');
+            const funcBloque = isManual ? `copiarBloqueManual('${todosCodigos}')` : `copiarBloque('${todosCodigos}')`;
+
+            const btnMasivo = `
+            <div style="padding:10px 16px; background:transparent;">
+                <button onclick="event.stopPropagation(); ${funcBloque}" style="width:100%; padding:12px; border-radius:12px; background:var(--surface); color:var(--accent); border:1px solid var(--border); font-weight:700; font-size:13px; cursor:pointer; box-shadow:0 1px 2px rgba(0,0,0,0.02); transition:background 0.2s;">
+                    📑 COPIAR TODA LA COLUMNA
+                </button>
+            </div>`;
+
+            const listado = items.map(i => {
+                const funcIndividual = isManual ? `copiarCodigoManual('${i.codigo}')` : `copiarCodigo('${i.codigo}')`;
+                return `
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 16px; border-bottom:1px solid var(--border); background:var(--surface);">
+                    <div style="display:flex; flex-direction:column; gap:2px;">
+                        <span style="font-family:monospace; font-size:16px; font-weight:700; color:var(--text-main); letter-spacing:0.5px;">${i.codigo}</span>
+                        ${i.fecha ? `<span style="font-size:11px; color:var(--text-sec); font-weight:600;">${i.fecha}</span>` : ''}
+                    </div>
+                    <div style="display:flex; align-items:center; gap:12px;">
+                        ${i.esManual ? '<span style="font-size:14px;">✏️</span>' : ''}
+                        <span style="color:var(--success); font-size:14px; font-weight:800;">S/.${i.precio}</span>
+                        <button onclick="event.stopPropagation(); ${funcIndividual}" style="background:var(--bg); color:var(--accent); border:none; padding:8px 16px; border-radius:12px; font-weight:700; font-size:13px; cursor:pointer; transition:background 0.2s;">Copiar</button>
+                    </div>
+                </div>
+                `;
+            }).join('');
+            
+            return btnMasivo + listado;
+        };
+
+        const htmlPMan = generarListaHTML(pMan, true);
+        const htmlCMan = generarListaHTML(cMan, true);
+        const htmlPScan = generarListaHTML(pScan, false);
+        const htmlCScan = generarListaHTML(cScan, false);
+
+        window.showDynamicList = function(type) {
+            playSound('click');
+            document.querySelectorAll('.tab-btn-vertical').forEach(b => b.classList.remove('active'));
+            document.getElementById('tab-' + type).classList.add('active');
+            
+            const container = document.getElementById('dynamic-list-container');
+            container.innerHTML = ''; 
+            
+            setTimeout(() => {
+                let content = '';
+                if(type === 'pMan') content = htmlPMan;
+                if(type === 'cMan') content = htmlCMan;
+                if(type === 'pScan') content = htmlPScan;
+                if(type === 'cScan') content = htmlCScan;
+                
+                container.innerHTML = `<div class="dynamic-view">${content}</div>`;
+            }, 10);
+        };
+
+        const container = document.getElementById('detalle-breakdown');
+        
+        const totalPScan = pScan.reduce((a,b)=>a+parseFloat(b.precio),0);
+        const totalPMan = pMan.reduce((a,b)=>a+parseFloat(b.precio),0);
+        const totalCScan = cScan.reduce((a,b)=>a+parseFloat(b.precio),0);
+        const totalCMan = cMan.reduce((a,b)=>a+parseFloat(b.precio),0);
+
+        const totalPedidos = pScan.length + pMan.length;
+        const totalCasos = cScan.length + cMan.length;
+        const granTotalItems = totalPedidos + totalCasos;
+
+        let excelSection = '';
+        if (dbExcels.length > 0) {
+            excelSection += `
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; width:100%;">
+                    <button onclick="abrirDashboardGuardado()" style="background:var(--primary); color:var(--bg); border:none; border-radius:16px; padding:15px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; box-shadow:0 4px 10px rgba(0,0,0,0.1); cursor:pointer; transition:transform 0.2s;">
+                        <span style="font-size:24px;">📊</span>
+                        <span style="font-size:13px; font-weight:800;">Auditoría</span>
+                    </button>
+                    <button onclick="document.getElementById('excel-audit-input').click()" style="background:var(--bg-success); color:var(--success); border:1px solid var(--border-success); border-radius:16px; padding:15px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; box-shadow:0 2px 6px rgba(0,0,0,0.05); cursor:pointer; transition:transform 0.2s;">
+                        <span style="font-size:24px;">➕</span>
+                        <span style="font-size:13px; font-weight:800;">Añadir Excel</span>
+                    </button>
+                    <button onclick="borrarTodosExcels()" style="background:var(--bg-danger); color:var(--danger); border:1px solid var(--border-danger); border-radius:16px; padding:15px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; box-shadow:0 2px 6px rgba(0,0,0,0.05); cursor:pointer; transition:transform 0.2s;">
+                        <span style="font-size:24px;">🗑️</span>
+                        <span style="font-size:13px; font-weight:800;">Borrar Excel</span>
+                    </button>
+                    <a href="https://docs.google.com/forms/d/e/1FAIpQLSdoqmno0DO0h9hvw4fp7hKTEK5PG7gez_y-uunra2PKkrTxBw/viewform" target="_blank" rel="noopener noreferrer" style="text-decoration:none; display:flex;">
+                        <div style="flex:1; width:100%; background:var(--surface); color:var(--accent); border:1px solid var(--border); border-radius:16px; padding:15px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; box-shadow:0 2px 6px rgba(0,0,0,0.05); cursor:pointer; transition:transform 0.2s; box-sizing:border-box;">
+                            <span style="font-size:24px;">📝</span>
+                            <span style="font-size:13px; font-weight:800; text-align:center;">Forms Manual</span>
+                        </div>
+                    </a>
+                </div>
+            `;
+        } else {
+            excelSection += `
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; width:100%;">
+                    <button onclick="document.getElementById('excel-audit-input').click()" style="background:var(--success); color:white; border:none; border-radius:16px; padding:15px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; box-shadow:0 4px 10px rgba(16,185,129,0.2); cursor:pointer; transition:transform 0.2s;">
+                        <span style="font-size:24px;">📗</span>
+                        <span style="font-size:13px; font-weight:800;">Cargar Excel</span>
+                    </button>
+                    <a href="https://docs.google.com/forms/d/e/1FAIpQLSdoqmno0DO0h9hvw4fp7hKTEK5PG7gez_y-uunra2PKkrTxBw/viewform" target="_blank" rel="noopener noreferrer" style="text-decoration:none; display:flex;">
+                        <div style="flex:1; width:100%; background:var(--surface); color:var(--accent); border:1px solid var(--border); border-radius:16px; padding:15px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; box-shadow:0 2px 6px rgba(0,0,0,0.05); cursor:pointer; transition:transform 0.2s; box-sizing:border-box;">
+                            <span style="font-size:24px;">📝</span>
+                            <span style="font-size:13px; font-weight:800; text-align:center;">Forms Manual</span>
+                        </div>
+                    </a>
+                </div>
+            `;
+        }
+
+        const toolsBlock = `
+            <div style="margin-top:0px; margin-bottom:15px;">
+                <div style="font-size:13px; font-weight:800; color:var(--text-sec); text-transform:uppercase; margin-bottom:8px; margin-left:8px;">Opciones Rápidas</div>
+                ${excelSection}
+            </div>
+        `;
+
+        const listsBlock = `
+            <div style="display:flex; flex-direction:column;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; margin-left:8px; margin-right:8px;">
+                    <div style="font-size:13px; font-weight:800; color:var(--text-sec); text-transform:uppercase;">Resumen y Listas</div>
+                    <div style="display:flex; align-items:center; gap:5px; background:var(--surface); padding:6px 10px; border-radius:10px; border:1px solid var(--border); cursor:pointer;" onclick="openSuffixModal()">
+                        <span style="font-size:10px; color:var(--text-sec); font-weight:700;">DISTRITO:</span>
+                        <span id="suffix-display" style="color:var(--accent); font-size:12px; font-weight:800;">${sufijoActual || 'Sin distrito'}</span>
+                        <span style="font-size:10px;">✏️</span>
+                    </div>
+                </div>
+                
+                <div style="border-radius:20px; overflow:hidden; background:var(--surface); box-shadow:0 4px 20px rgba(0,0,0,0.04); border:1px solid var(--border); margin-bottom:15px;">
+                    
+                    <!-- LISTA VERTICAL -->
+                    <div style="display:flex; flex-direction:column;">
+                        <button id="tab-pMan" class="tab-btn-vertical" onclick="showDynamicList('pMan')" style="border:none; border-bottom:1px solid var(--border); border-radius:0; padding:16px; display:flex; justify-content:space-between; align-items:center; background:var(--surface); width:100%;">
+                            <div style="display:flex; align-items:center; gap:12px;">
+                                <span style="font-size:20px;">✏️</span>
+                                <div style="text-align:left;">
+                                    <div style="font-size:14px; font-weight:800; color:var(--text-warn);">Pedidos Manual</div>
+                                    <div style="font-size:12px; color:var(--text-sec);">${pMan.length} ítems</div>
+                                </div>
+                            </div>
+                            <div style="font-size:14px; font-weight:800; color:var(--text-main);">S/.${totalPMan.toFixed(2)}</div>
+                        </button>
+                        
+                        <button id="tab-cMan" class="tab-btn-vertical" onclick="showDynamicList('cMan')" style="border:none; border-bottom:1px solid var(--border); border-radius:0; padding:16px; display:flex; justify-content:space-between; align-items:center; background:var(--surface); width:100%;">
+                            <div style="display:flex; align-items:center; gap:12px;">
+                                <span style="font-size:20px;">⚠️</span>
+                                <div style="text-align:left;">
+                                    <div style="font-size:14px; font-weight:800; color:var(--text-warn);">Casos Manual</div>
+                                    <div style="font-size:12px; color:var(--text-sec);">${cMan.length} ítems</div>
+                                </div>
+                            </div>
+                            <div style="font-size:14px; font-weight:800; color:var(--text-main);">S/.${totalCMan.toFixed(2)}</div>
+                        </button>
+
+                        <button id="tab-pScan" class="tab-btn-vertical" onclick="showDynamicList('pScan')" style="border:none; border-bottom:1px solid var(--border); border-radius:0; padding:16px; display:flex; justify-content:space-between; align-items:center; background:var(--surface); width:100%;">
+                            <div style="display:flex; align-items:center; gap:12px;">
+                                <span style="font-size:20px;">📦</span>
+                                <div style="text-align:left;">
+                                    <div style="font-size:14px; font-weight:800; color:var(--text-main);">Pedidos Scan</div>
+                                    <div style="font-size:12px; color:var(--text-sec);">${pScan.length} ítems</div>
+                                </div>
+                            </div>
+                            <div style="font-size:14px; font-weight:800; color:var(--text-main);">S/.${totalPScan.toFixed(2)}</div>
+                        </button>
+
+                        <button id="tab-cScan" class="tab-btn-vertical" onclick="showDynamicList('cScan')" style="border:none; border-bottom:1px solid var(--border); border-radius:0; padding:16px; display:flex; justify-content:space-between; align-items:center; background:var(--surface); width:100%;">
+                            <div style="display:flex; align-items:center; gap:12px;">
+                                <span style="font-size:20px;">📂</span>
+                                <div style="text-align:left;">
+                                    <div style="font-size:14px; font-weight:800; color:var(--text-main);">Casos Scan</div>
+                                    <div style="font-size:12px; color:var(--text-sec);">${cScan.length} ítems</div>
+                                </div>
+                            </div>
+                            <div style="font-size:14px; font-weight:800; color:var(--text-main);">S/.${totalCScan.toFixed(2)}</div>
+                        </button>
+                        
+                        <!-- TOTAL GENERAL AL FINAL DE LA LISTA -->
+                        <div style="padding:16px; background:var(--bg-success); display:flex; justify-content:space-between; align-items:center;">
+                            <div style="display:flex; flex-direction:column;">
+                                <span style="font-size:14px; font-weight:900; color:var(--success); text-transform:uppercase;">Total General</span>
+                                <span style="font-size:11px; color:var(--success); opacity:0.8; font-weight:700;">${totalPedidos} Pedidos | ${totalCasos} Casos</span>
+                            </div>
+                            <div style="text-align:right;">
+                                <span style="font-size:18px; font-weight:900; color:var(--success);">${granTotalItems} ítems</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="dynamic-list-container" style="background:var(--surface); border-radius:20px; border:1px solid var(--border); overflow:hidden; min-height:100px; margin-bottom:15px;">
+                    <!-- La lista se inyecta aquí -->
+                </div>
+            </div>
+        `;
+
+        container.innerHTML = toolsBlock + listsBlock;
+        document.getElementById('modal-detalles').style.display = 'flex';
+
+        // Auto-abrir la lista con prioridad
+        if (pMan.length > 0) setTimeout(() => showDynamicList('pMan'), 50);
+        else if (cMan.length > 0) setTimeout(() => showDynamicList('cMan'), 50);
+        else setTimeout(() => showDynamicList('pScan'), 50);
+    }
+
+    document.getElementById('camera-input').onchange = async function() {
+        const files = Array.from(this.files);
+        if (files.length === 0) return;
+
+        const scanBtn = document.getElementById('scan-btn');
+        const pLine = document.getElementById('progress-line');
+        const originalIcon = scanBtn.innerHTML;
+        
+        scanBtn.classList.add('loading');
+        scanBtn.innerText = "0%";
+        scanBtn.style.fontSize = "18px";
+        scanBtn.style.fontWeight = "900";
+        pLine.style.opacity = "1";
+        playSound('click');
+
+        for (let i = 0; i < files.length; i++) {
+            try {
+                const { data: { text } } = await Tesseract.recognize(files[i], 'spa+eng', {
+                    logger: m => {
+                        if (m.status === 'recognizing text') {
+                            let overallProgress = ((i + m.progress) / files.length) * 100;
+                            scanBtn.innerText = Math.round(overallProgress) + '%';
+                            pLine.style.width = `${overallProgress}%`;
+                        }
+                    }
+                });
+                
+                let fechaHoja = fechaSeleccionada;
+                let fechaEncontrada = false;
+
+                const regexFecha = /(\d{1,2})[\/\- ](\d{1,2})[\/\- ](\d{2,4})/.exec(text);
+                if(regexFecha) {
+                    let d = regexFecha[1].padStart(2, '0'), m = regexFecha[2].padStart(2, '0'), a = regexFecha[3];
+                    if(a.length === 2) a = "20" + a;
+                    fechaHoja = `${a}-${m}-${d}`;
+                    fechaSeleccionada = fechaHoja;
+                    fechaEncontrada = true;
+                }
+                
+                text.split('\n').forEach(linea => {
+                    const regexNum = /(?:0)?(1\d{7,10})/.exec(linea);
+                    if (regexNum) {
+                        const esCaso = linea.toUpperCase().includes("CASO") || linea.toUpperCase().includes("OP") || linea.startsWith('0');
+                        guardarRuta(regexNum[1], esCaso ? 'CASO' : 'PEDIDO', fechaHoja, null, false);
+                    }
+                });
+                
+                if(fechaEncontrada) renderHistorial();
+
+            } catch (err) { console.error(err); playSound('error'); }
+        }
+
+        scanBtn.classList.remove('loading');
+        scanBtn.style.fontSize = "";
+        scanBtn.style.fontWeight = "";
+        scanBtn.innerHTML = originalIcon;
+        setTimeout(() => { pLine.style.opacity = "0"; setTimeout(() => pLine.style.width = "0%", 300); }, 500);
+        playSound('success');
+        this.value = "";
+    };
+
+    window.procesarIngresoManual = function() {
+        try {
+            const inputVal = document.getElementById('manualInput').value;
+            if (!inputVal.trim()) return;
+
+            const regex = /\d+[cC]?/gi;
+            let match;
+            manualCandidates = []; 
+            
+            while ((match = regex.exec(inputVal)) !== null) {
+                let rawCode = match[0];
+                let isCaso = false;
+                if (rawCode.toLowerCase().endsWith('c')) {
+                    isCaso = true;
+                    rawCode = rawCode.slice(0, -1);
+                }
+                manualCandidates.push({
+                    id: Math.random().toString(36),
+                    code: rawCode,
+                    type: isCaso ? 'CASO' : 'PEDIDO' 
+                });
+            }
+
+            if (manualCandidates.length > 0) {
+                document.getElementById('manualInput').value = ""; 
+                renderManualModal();
+                openManualReview();
+                playSound('success');
+            } else {
+                playSound('error');
+                alert("No se detectaron códigos válidos.");
+            }
+        } catch (e) {
+            console.error(e);
+            playSound('error');
+        }
+    };
+
+    async function processManualImage(inputElement) {
+        const files = Array.from(inputElement.files);
+        if (files.length === 0) return;
+
+        mostrarFeedback("Analizando Imagen...");
+        playSound('click');
+        manualCandidates = []; 
+
+        try {
+            for (let i = 0; i < files.length; i++) {
+                const { data: { text } } = await Tesseract.recognize(files[i], 'spa+eng');
+                
+                const regex = /\b1\d{7}\b/g;
+                let match;
+                while ((match = regex.exec(text)) !== null) {
+                    const startIndex = Math.max(0, match.index - 20);
+                    const context = text.substring(startIndex, match.index + 20).toUpperCase();
+                    const isCaso = context.includes('CASO') || context.includes('OP');
+                    
+                    manualCandidates.push({
+                        id: Math.random().toString(36),
+                        code: match[0],
+                        type: isCaso ? 'CASO' : 'PEDIDO'
+                    });
+                }
+            }
+
+            if (manualCandidates.length > 0) {
+                renderManualModal();
+                openManualReview();
+                playSound('success');
+            } else {
+                playSound('error');
+                alert("No se detectaron códigos válidos.");
+            }
+        } catch (err) {
+            console.error(err);
+            playSound('error');
+            alert("Error al procesar la imagen.");
+        }
+        
+        inputElement.value = "";
+    }
+
+    function openManualReview() {
+        document.getElementById('manual-review-overlay').classList.add('active');
+        document.getElementById('manual-review-sheet').classList.add('active');
+        document.getElementById('manual-sheet').classList.remove('active');
+    }
+
+    function closeManualReview() {
+        document.getElementById('manual-review-overlay').classList.remove('active');
+        document.getElementById('manual-review-sheet').classList.remove('active');
+        document.getElementById('manual-overlay').classList.remove('active');
+    }
+
+    function renderManualModal() {
+        const container = document.getElementById('manual-review-list');
+        document.getElementById('review-count').innerText = manualCandidates.length;
+        container.innerHTML = "";
+
+        manualCandidates.forEach((item, index) => {
+            const div = document.createElement('div');
+            div.style.cssText = "background:var(--surface); padding:12px; margin-bottom:12px; border-radius:14px; display:flex; align-items:center; gap:12px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); border:1px solid var(--border);";
+
+            const inputCode = document.createElement('input');
+            inputCode.type = "text";
+            inputCode.value = item.code;
+            inputCode.style.cssText = "flex:1; border:none; background:transparent; font-family:monospace; font-size:18px; font-weight:bold; color:var(--text-main); outline:none; min-width: 0;";
+            inputCode.onchange = (e) => { item.code = e.target.value; };
+
+            const toggleContainer = document.createElement('div');
+            const isCaso = item.type === 'CASO';
+            
+            toggleContainer.style.cssText = `
+                width: 74px; height: 32px; 
+                background: ${isCaso ? 'var(--accent)' : 'var(--bg)'}; 
+                border-radius: 16px; 
+                position: relative; 
+                cursor: pointer; 
+                transition: background 0.2s ease;
+                display: flex; align-items: center; justify-content: space-between;
+                padding: 2px;
+                flex-shrink: 0;
+            `;
+
+            const knob = document.createElement('div');
+            knob.style.cssText = `
+                width: 28px; height: 28px; 
+                background: #ffffff; 
+                border-radius: 50%; 
+                box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+                transform: translateX(${isCaso ? '42px' : '0px'});
+                z-index: 2;
+            `;
+
+            const labelText = document.createElement('span');
+            labelText.innerText = isCaso ? "CASO" : "PED";
+            labelText.style.cssText = `
+                position: absolute; 
+                width: 100%; text-align: ${isCaso ? 'left' : 'right'}; 
+                padding: 0 10px;
+                font-size: 10px; font-weight: 700; 
+                color: ${isCaso ? '#ffffff' : 'var(--text-sec)'};
+                pointer-events: none;
+            `;
+
+            toggleContainer.appendChild(labelText);
+            toggleContainer.appendChild(knob);
+
+            toggleContainer.onclick = () => {
+                item.type = item.type === 'PEDIDO' ? 'CASO' : 'PEDIDO';
+                renderManualModal();
+            };
+
+            const btnDel = document.createElement('button');
+            btnDel.innerHTML = "✕";
+            btnDel.ariaLabel = "Eliminar candidato";
+            btnDel.style.cssText = "background:transparent; color:var(--danger); border:none; width:30px; height:30px; font-size:18px; font-weight:bold; cursor:pointer; flex-shrink:0;";
+            btnDel.onclick = () => {
+                manualCandidates.splice(index, 1);
+                renderManualModal();
+            };
+
+            div.appendChild(inputCode);
+            div.appendChild(toggleContainer);
+            div.appendChild(btnDel);
+            container.appendChild(div);
+        });
+    }
+
+    function confirmManualImport() {
+        if(manualCandidates.length === 0) return closeManualReview();
+        
+        manualCandidates.forEach(item => {
+            guardarRuta(item.code, item.type, fechaSeleccionada, null, true); 
+        });
+        
+        playSound('success');
+        closeManualReview();
+        mostrarFeedback(`Importados ${manualCandidates.length} registros`);
+    }
+
+    document.getElementById('manual-cam').onchange = function() { processManualImage(this); };
+    document.getElementById('manual-gallery').onchange = function() { processManualImage(this); };
+
+    function descargarTxtProfesional() {
+        const checks = document.querySelectorAll('.day-checkbox:checked');
+        let fechasExportar = [];
+        
+        if(checks.length > 0) {
+            checks.forEach(c => fechasExportar.push(c.value));
+        } else {
+            if(dbRutas[fechaSeleccionada] && dbRutas[fechaSeleccionada].length > 0) {
+                fechasExportar.push(fechaSeleccionada);
+            }
+        }
+        
+        if (fechasExportar.length === 0) {
+            return alert("⚠️ No hay datos para descargar en la selección o día actual.");
+        }
+
+        fechasExportar.sort();
+
+        let contenido = "========================================\n";
+        contenido += "          REPORTE DE ENTREGAS GO!       \n";
+        contenido += "========================================\n";
+        contenido += `Generado: ${new Date().toLocaleString()}\n`;
+        contenido += `Precio Base: S/. ${precioPorPedido.toFixed(2)}\n\n`;
+        
+        let granTotalDinero = 0;
+        let granTotalItems = 0;
+        let hayDatos = false;
+
+        fechasExportar.forEach(f => {
+            if(!dbRutas[f]) return;
+            const clean = dbRutas[f].filter(r => !r.esRepetido);
+            if(clean.length === 0) return;
+            
+            hayDatos = true;
+            const pedidos = clean.filter(r => r.tipo !== 'CASO');
+            const casos = clean.filter(r => r.tipo === 'CASO');
+            
+            let totalDia = 0;
+            
+            contenido += `----------------------------------------\n`;
+            contenido += ` FECHA: ${formatearFecha(f).toUpperCase()} (${clean.length} Items)\n`;
+            contenido += `----------------------------------------\n`;
+
+            if (pedidos.length > 0) {
+                contenido += ` >> PEDIDOS (${pedidos.length}):\n`;
+                pedidos.forEach((r, idx) => {
+                    let p = r.precioEspecial ? parseFloat(r.precioEspecial) : precioPorPedido;
+                    totalDia += p;
+                    let nota = r.esManual ? " [MANUAL]" : "";
+                    contenido += `    ${(idx+1).toString().padStart(2,'0')}. ${r.numero} - S/.${p.toFixed(2)}${nota}\n`;
+                });
+                contenido += "\n";
+            }
+
+            if (casos.length > 0) {
+                contenido += ` >> CASOS (${casos.length}):\n`;
+                casos.forEach((r, idx) => {
+                    let p = r.precioEspecial ? parseFloat(r.precioEspecial) : precioPorPedido;
+                    totalDia += p;
+                    let nota = r.esManual ? " [MANUAL]" : "";
+                    contenido += `    ${(idx+1).toString().padStart(2,'0')}. ${r.numero} - S/.${p.toFixed(2)}${nota}\n`;
+                });
+                contenido += "\n";
+            }
+            
+            contenido += ` SUBTOTAL DIA: S/. ${totalDia.toFixed(2)}\n\n`;
+            granTotalDinero += totalDia;
+            granTotalItems += clean.length;
+        });
+
+        if(!hayDatos) return alert("⚠️ La selección no contiene registros válidos.");
+
+        contenido += `========================================\n`;
+        contenido += ` RESUMEN FINAL\n`;
+        contenido += `========================================\n`;
+        contenido += ` TOTAL REGISTROS: ${granTotalItems}\n`;
+        contenido += ` MONTO TOTAL:     S/. ${granTotalDinero.toFixed(2)}\n`;
+        contenido += `========================================`;
+
+        const blob = new Blob(['\uFEFF' + contenido], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Reporte_Go_${new Date().toISOString().split('T')[0]}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        }, 100);
+    }
+
+    const COLS = {
+        DATE: 1,    
+        GUIDE: 9,   
+        NAME: 13,   
+        PRICE: 22,  
+        BONUS: 23,
+        OTHER_BONUS: 24
+    };
+
+    function leerExcelOptimizadoConProgreso(archivo, onProgress) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onprogress = (e) => {
+                if (e.lengthComputable) {
+                    onProgress((e.loaded / e.total) * 50);
+                }
+            };
+            reader.onload = (e) => {
+                try {
+                    onProgress(60); 
+                    setTimeout(() => {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+                        onProgress(80); 
+                        
+                        let sheetName = workbook.SheetNames.find(n => n.toLowerCase().match(/(planilla|pagos|reporte)/)) || workbook.SheetNames[0];
+                        const ws = workbook.Sheets[sheetName];
+                        const jsonData = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, blankrows: false });
+
+                        let filaEncabezado = 0;
+                        for (let i = 0; i < Math.min(30, jsonData.length); i++) {
+                            const rowStr = JSON.stringify(jsonData[i]).toLowerCase();
+                            if (rowStr.includes("activación") || rowStr.includes("guia")) {
+                                filaEncabezado = i;
+                                break;
+                            }
+                        }
+
+                        const rawData = [];
+
+                        for (let i = filaEncabezado + 1; i < jsonData.length; i++) {
+                            const row = jsonData[i];
+                            if (!row) continue;
+
+                            const rawName = row[COLS.NAME];
+                            const rawGuide = row[COLS.GUIDE];
+
+                            if (!rawName && !rawGuide) continue;
+
+                            let name = rawName ? String(rawName).toUpperCase().trim().replace(/\s+/g, ' ') : "SIN NOMBRE";
+                            if (name.includes("TOTAL") || name.includes("PÁGINA")) continue;
+
+                            let rawGuideStr = rawGuide ? String(rawGuide).trim() : "";
+                            let simpleGuide = "";
+                            const match8 = rawGuideStr.match(/(\d{8})/);
+                            if (match8) {
+                                simpleGuide = match8[0];
+                            } else if (rawGuideStr.length > 0) {
+                                simpleGuide = rawGuideStr;
+                            }
+
+                            let rawPrice = row[COLS.PRICE];
+                            let basePrice = 0;
+                            if (typeof rawPrice === 'number') {
+                                basePrice = rawPrice;
+                            } else if (rawPrice) {
+                                basePrice = parseFloat(String(rawPrice).replace(/[^\d.-]/g, '')) || 0;
+                            }
+
+                            let rawBonus = row[COLS.BONUS];
+                            let bonus = 0;
+                            if (typeof rawBonus === 'number') {
+                                bonus = rawBonus;
+                            } else if (rawBonus) {
+                                bonus = parseFloat(String(rawBonus).replace(/[^\d.-]/g, '')) || 0;
+                            }
+                            
+                            let rawOtherBonus = row[COLS.OTHER_BONUS];
+                            let otherBonus = 0;
+                            if (typeof rawOtherBonus === 'number') {
+                                otherBonus = rawOtherBonus;
+                            } else if (rawOtherBonus) {
+                                otherBonus = parseFloat(String(rawOtherBonus).replace(/[^\d.-]/g, '')) || 0;
+                            }
+                            
+                            let rawDate = row[COLS.DATE];
+                            let dateStr = "";
+                            if(rawDate instanceof Date) {
+                                dateStr = rawDate.toLocaleDateString('es-PE', {day:'2-digit', month:'2-digit', year:'numeric'});
+                            } else if (rawDate) {
+                                dateStr = String(rawDate).trim();
+                            }
+
+                            if (basePrice > 0 || bonus > 0 || otherBonus > 0 || simpleGuide) {
+                                rawData.push({
+                                    name: name,
+                                    codigo: simpleGuide, 
+                                    basePrice: basePrice, 
+                                    bonus: bonus,
+                                    otherBonus: otherBonus,
+                                    dateStr: dateStr      
+                                });
+                            }
+                        }
+                        onProgress(100);
+                        resolve(rawData);
+                    }, 50);
+                } catch (err) { reject(err); }
+            };
+            reader.onerror = () => reject(new Error("Error al leer el archivo Excel"));
+            reader.readAsArrayBuffer(archivo);
+        });
+    }
+
+    async function procesarComparacionExcel(input) {
+        if (!input.files.length) return;
+        
+        const overlay = document.getElementById('excel-progress-overlay');
+        const bar = document.getElementById('excel-progress-bar');
+        const text = document.getElementById('excel-progress-text');
+        
+        overlay.classList.add('active');
+        playSound('click');
+        
+        try {
+            for (let i = 0; i < input.files.length; i++) {
+                const file = input.files[i];
+                const excelData = await leerExcelOptimizadoConProgreso(file, (percent) => {
+                    let overall = ((i * 100) + percent) / input.files.length;
+                    bar.style.width = `${overall}%`;
+                    text.innerText = `${Math.round(overall)}%`;
+                });
+                dbExcels.push({ id: Date.now() + i, data: excelData, name: file.name });
+            }
+            localStorage.setItem('excelGoRaw', JSON.stringify(dbExcels));
+            
+            setTimeout(() => {
+                overlay.classList.remove('active');
+                ejecutarAuditoria();
+                playSound('success');
+                bar.style.width = "0%";
+                text.innerText = "0%";
+            }, 600);
+            
+        } catch (error) {
+            overlay.classList.remove('active');
+            console.error(error);
+            alert("Error: " + error.message);
+            playSound('error');
+            bar.style.width = "0%";
+            text.innerText = "0%";
+        }
+        input.value = ""; 
+    }
+
+    function ejecutarAuditoria() {
+        try {
+            if (dbExcels.length === 0) return;
+            
+            let mergedExcelData = [];
+            dbExcels.forEach(ex => {
+                mergedExcelData = mergedExcelData.concat(ex.data);
+            });
+
+            const nameHits = {};
+            let maxHits = 0;
+            let detectedName = null;
+
+            const misCodigosScanned = new Set(datosComparacion.filter(d => !d.esManual).map(d => d.codigo));
+
+            mergedExcelData.forEach(row => {
+                if(row.codigo && misCodigosScanned.has(row.codigo)) {
+                    if(!nameHits[row.name]) nameHits[row.name] = 0;
+                    nameHits[row.name]++;
+                    if(nameHits[row.name] > maxHits) {
+                        maxHits = nameHits[row.name];
+                        detectedName = row.name;
+                    }
+                }
+            });
+
+            if(!detectedName) {
+                alert("No encontré coincidencias exactas. Registra más códigos escaneados para identificarte.");
+                return;
+            }
+
+            const excelUserRows = mergedExcelData.filter(r => r.name === detectedName);
+            
+            const excelPaidGuides = new Set();
+            let totalExcelFinanciero = 0;
+            let sumaBonosExcel = 0;
+            let sumaBaseExcel = 0;
+            let sumaOtrosBonosExcel = 0;
+
+            excelUserRows.forEach(r => {
+                if(r.codigo) excelPaidGuides.add(r.codigo);
+                totalExcelFinanciero += (r.basePrice + r.bonus + (r.otherBonus || 0));
+                sumaBaseExcel += (r.basePrice || 0);
+                sumaBonosExcel += (r.bonus || 0);
+                sumaOtrosBonosExcel += (r.otherBonus || 0);
+            });
+
+            const listaFaltantes = []; 
+            const listaSobranEnExcel = []; 
+
+            datosComparacion.forEach(item => {
+                if (!item.esManual) {
+                    if (!excelPaidGuides.has(item.codigo)) {
+                        listaFaltantes.push(item);
+                    }
+                }
+            });
+
+            excelPaidGuides.forEach(excelCode => {
+                if(excelCode && excelCode !== "S/N") {
+                    if(!misCodigosScanned.has(excelCode)) {
+                        listaSobranEnExcel.push(excelCode);
+                    }
+                }
+            });
+
+            const misManuales = datosComparacion.filter(d => d.esManual);
+            const misEscaneados = datosComparacion.filter(d => !d.esManual);
+
+            let totalAppFinanciero = datosComparacion.reduce((sum, item) => sum + parseFloat(item.precio), 0);
+            const diferencia = totalExcelFinanciero - totalAppFinanciero;
+
+            datosAuditoriaRender = {
+                nombre: detectedName,
+                faltantes: listaFaltantes,
+                sobrantes: listaSobranEnExcel,
+                manuales: misManuales,
+                escaneados: misEscaneados,
+                sumaBonosExcel: sumaBonosExcel,
+                sumaBaseExcel: sumaBaseExcel,
+                sumaOtrosBonosExcel: sumaOtrosBonosExcel,
+                totalApp: totalAppFinanciero,
+                totalExcel: totalExcelFinanciero,
+                diferencia: diferencia,
+                userExcelRows: excelUserRows, 
+                allExcelRows: mergedExcelData       
+            };
+
+            localStorage.setItem('excelGoV5', JSON.stringify(datosAuditoriaRender));
+            
+            renderAuditDashboard(datosAuditoriaRender);
+            document.getElementById('modal-detalles').style.display = 'none';
+        } catch (e) {
+            console.error("Error en auditoría", e);
+            alert("Ocurrió un error al procesar la auditoría.");
+        }
+    }
+
+    function abrirDashboardGuardado() {
+        if(dbExcels.length > 0) {
+            ejecutarAuditoria();
+            playSound('click');
+        } else {
+            alert("No hay ningún Excel guardado.");
+        }
+    }
+
+    function borrarExcelGuardado(id) {
+        if(confirm("¿Eliminar esta planilla guardada en memoria?")) {
+            dbExcels = dbExcels.filter(ex => ex.id !== id);
+            localStorage.setItem('excelGoRaw', JSON.stringify(dbExcels));
+            if (dbExcels.length === 0) {
+                datosAuditoriaRender = null;
+                localStorage.removeItem('excelGoV5');
+            }
+            playSound('delete');
+            mostrarFeedback("Planilla Borrada");
+            
+            if(modoSeleccionActivo) {
+                verResumenSeleccionado();
+            } else {
+                mostrarDetalles(); 
+            }
+        }
+    }
+
+    function renderAuditDashboard(data) {
+        const modal = document.getElementById('modal-audit-dashboard');
+        modal.style.display = 'flex';
+
+        const esPerfecto = Math.abs(data.diferencia) < 1;
+        const colorDiff = data.diferencia >= 0 ? 'var(--success)' : 'var(--danger)';
+        
+        let explicacion = "";
+        if (esPerfecto) explicacion = "✅ Cuadre Perfecto";
+        else if (data.diferencia > 0) explicacion = "💰 Planilla te paga más";
+        else explicacion = "⚠️ Planilla te paga menos";
+
+        const cantManuales = data.manuales ? data.manuales.length : 0;
+        const totalManualesApp = data.manuales ? data.manuales.reduce((sum, item) => sum + parseFloat(item.precio), 0) : 0;
+        const diffBonos = (data.sumaBonosExcel || 0) - totalManualesApp;
+        const bonosCubiertos = diffBonos >= -1; 
+
+        const colorBonos = bonosCubiertos ? 'var(--success)' : 'var(--danger)';
+        const bgBonos = bonosCubiertos ? 'var(--bg-success)' : 'var(--bg-danger)';
+        const borderBonos = bonosCubiertos ? 'var(--border-success)' : 'var(--border-danger)';
+        const msgBonos = bonosCubiertos 
+            ? `Excel cubre manuales (Sobra S/.${diffBonos.toFixed(2)})` 
+            : `FALTAN S/. ${Math.abs(diffBonos).toFixed(2)} EN BONOS`;
+
+        const cantEscaneados = data.escaneados ? data.escaneados.length : 0;
+        const totalEscaneadosApp = data.escaneados ? data.escaneados.reduce((sum, item) => sum + parseFloat(item.precio), 0) : 0;
+
+        // BOTÓN DE CIERRE DE SEMANA (ARRIBA Y LLAMATIVO)
+        const btnColor = esPerfecto ? 'var(--success)' : 'var(--danger)';
+        const textStatus = esPerfecto ? '✅ CUADRE PERFECTO: CERRAR SEMANA' : '⚠️ CUADRE INEXACTO: CERRAR SEMANA';
+        const btnHtml = `
+            <div style="display:flex; gap:10px; margin-bottom: 15px;">
+                <button onclick="prepararCierreSemana(${esPerfecto})" style="flex:1; padding:16px; border-radius:16px; background:${btnColor}; color:white; border:none; font-weight:900; font-size:14px; cursor:pointer; box-shadow:0 6px 15px rgba(0,0,0,0.2); animation: pulseBtn 2s infinite; letter-spacing: 0.5px;">
+                    ${textStatus}
+                </button>
+                <button onclick="document.getElementById('excel-audit-input').click()" style="padding:16px; border-radius:16px; background:var(--bg); color:var(--success); border:2px dashed var(--success); font-weight:800; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; white-space:nowrap;">
+                    ➕ Excel
+                </button>
+            </div>
+        `;
+        document.getElementById('audit-btn-top').innerHTML = btnHtml;
+
+        const htmlFinancial = `
+            <div style="background:var(--surface); padding:20px; border-radius:16px; margin-bottom:15px; box-shadow:0 1px 4px rgba(0,0,0,0.04); border:1px solid var(--border);">
+                <div style="font-size:13px; color:var(--text-sec); text-align:center; margin-bottom:16px; font-weight:700;">Análisis financiero para: <b style="color:var(--text-main);">${data.nombre}</b></div>
+                
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                    <div style="text-align:left;">
+                        <div style="font-size:11px; color:var(--text-sec); font-weight:800; margin-bottom:4px;">CÁLCULO APP</div>
+                        <div style="font-size:20px; font-weight:800; color:var(--text-main); font-family:-apple-system, sans-serif;">S/. ${data.totalApp.toFixed(2)}</div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-size:11px; color:var(--text-sec); font-weight:800; margin-bottom:4px;">PAGO EXCEL</div>
+                        <div style="font-size:20px; font-weight:800; color:var(--accent); font-family:-apple-system, sans-serif;">S/. ${data.totalExcel.toFixed(2)}</div>
+                    </div>
+                </div>
+
+                <div style="background:var(--bg-sec); border-radius:10px; padding:12px; margin-bottom:10px; border:1px solid var(--border);">
+                    <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--text-sec); font-weight:700; margin-bottom:4px;">
+                        <span>📦 Escaneados (${cantEscaneados})</span>
+                        <span>S/. ${totalEscaneadosApp.toFixed(2)}</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--accent); font-weight:800;">
+                        <span>💵 Pago Base Excel</span>
+                        <span>S/. ${(data.sumaBaseExcel || 0).toFixed(2)}</span>
+                    </div>
+                </div>
+
+                <div style="background:${bgBonos}; border-radius:10px; padding:12px; border:1px solid ${borderBonos};">
+                    <div style="display:flex; justify-content:space-between; font-size:12px; color:${colorBonos}; font-weight:700; margin-bottom:4px;">
+                        <span>✏️ Manuales (${cantManuales})</span>
+                        <span>S/. ${totalManualesApp.toFixed(2)}</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; font-size:12px; color:${colorBonos}; font-weight:800; margin-bottom:4px;">
+                        <span>🎁 Bonos Excel</span>
+                        <span>S/. ${(data.sumaBonosExcel || 0).toFixed(2)}</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--text-warn); font-weight:800; margin-bottom:4px;">
+                        <span>Otros Bonos</span>
+                        <span>S/. ${(data.sumaOtrosBonosExcel || 0).toFixed(2)}</span>
+                    </div>
+                    <div style="border-top:1px dashed ${colorBonos}; padding-top:4px; margin-top:4px; font-size:11px; font-weight:800; color:${colorBonos}; text-align:right;">
+                        ${msgBonos}
+                    </div>
+                </div>
+                
+                <div style="margin-top:20px; padding-top:16px; border-top:1px solid var(--border); text-align:center;">
+                    <div style="font-size:12px; color:var(--text-sec); font-weight:800; margin-bottom:6px;">BALANCE / DIFERENCIA TOTAL</div>
+                    <div style="font-size:28px; font-weight:800; font-family:-apple-system, sans-serif; color:${colorDiff};">
+                        ${data.diferencia > 0 ? '+' : ''}S/. ${data.diferencia.toFixed(2)}
+                    </div>
+                    <div style="font-size:13px; color:${colorDiff}; margin-top:4px; font-weight:700;">${explicacion}</div>
+                </div>
+            </div>
+        `;
+        document.getElementById('audit-financial-summary').innerHTML = htmlFinancial;
+
+        let htmlComparison = "";
+        
+        if (data.faltantes.length === 0) {
+            htmlComparison += `
+            <div style="margin-bottom:16px; background:var(--bg-success); border-radius:14px; border:1px solid var(--border-success); padding:16px; text-align:center; box-shadow:0 1px 4px rgba(0,0,0,0.03);">
+                <h3 style="margin:0 0 4px 0; font-size:14px; color:var(--success);">✅ TODO ESCANEADO ESTÁ PAGADO</h3>
+                <p style="margin:0; font-size:12px; color:var(--success);">Todas tus guías escaneadas aparecen en la planilla.</p>
+            </div>`;
+        } else {
+            htmlComparison += `
+            <div style="margin-bottom:16px; background:var(--surface); border-radius:14px; box-shadow:0 1px 4px rgba(0,0,0,0.03); border:1px solid var(--border); overflow:hidden;">
+                <div style="padding:10px 14px; background:var(--bg-danger); border-bottom:1px solid var(--border-danger); display:flex; justify-content:space-between; align-items:center;">
+                    <div style="font-weight:700; font-size:12px; color:var(--danger);">⚠️ FALTAN EN EXCEL (${data.faltantes.length})</div>
+                    <button onclick="copiarBloqueManual('${data.faltantes.map(f=>f.codigo).join('|')}')" style="background:var(--border-danger); color:var(--danger); border:none; padding:6px 10px; border-radius:8px; font-weight:800; font-size:10px; cursor:pointer;">COPIAR TODO</button>
+                </div>
+                <div style="max-height:220px; overflow-y:auto; padding:8px;">
+                    <div style="display:grid; grid-template-columns:repeat(2, 1fr); gap:8px;">
+                        ${data.faltantes.map((f) => 
+                            `<div style="display:flex; flex-direction:column; justify-content:center; background:var(--bg-sec); border:1px solid var(--border-danger); border-radius:8px; padding:8px; position:relative;">
+                                <span style="font-size:10px; color:var(--text-sec); font-weight:600; margin-bottom:2px;">${f.fecha || 'S/F'}</span>
+                                <b style="font-family:monospace; color:var(--danger); font-size:14px; font-weight:700;">${f.codigo}</b>
+                                <button onclick="copiarCodigoManual('${f.codigo}')" aria-label="Copiar código" style="position:absolute; bottom:6px; right:6px; background:var(--bg-danger); color:var(--danger); border:none; padding:4px 8px; border-radius:6px; font-weight:700; font-size:11px; cursor:pointer;">📋</button>
+                             </div>`
+                        ).join('')}
+                    </div>
+                </div>
+            </div>`;
+        }
+
+        if (data.sobrantes.length > 0) {
+            htmlComparison += `
+            <div style="margin-bottom:16px; background:var(--surface); border-radius:14px; box-shadow:0 1px 4px rgba(0,0,0,0.03); border:1px solid var(--border); overflow:hidden;">
+                <div style="padding:10px 14px; background:var(--bg-info); border-bottom:1px solid var(--border-info); display:flex; justify-content:space-between; align-items:center;">
+                    <div style="font-weight:700; font-size:12px; color:var(--accent);">ℹ️ SOBRAN EN EXCEL (${data.sobrantes.length})</div>
+                </div>
+                <div style="padding:8px 14px 0 14px; font-size:11px; color:var(--accent); font-weight:600;">Aparecen en la planilla pero no los escaneaste:</div>
+                <div style="max-height:180px; overflow-y:auto; padding:8px;">
+                    <div style="display:grid; grid-template-columns:repeat(2, 1fr); gap:8px;">
+                        ${data.sobrantes.map((s) => 
+                            `<div style="display:flex; flex-direction:column; justify-content:center; background:var(--bg-sec); border:1px solid var(--border-info); border-radius:8px; padding:8px; position:relative;">
+                                <span style="font-size:10px; color:var(--text-sec); font-weight:600; margin-bottom:2px;">Extra</span>
+                                <b style="font-family:monospace; color:var(--accent); font-size:14px; font-weight:700;">${s}</b>
+                                <button onclick="copiarCodigo('${s}')" aria-label="Copiar código" style="position:absolute; bottom:6px; right:6px; background:var(--bg-info); color:var(--accent); border:none; padding:4px 8px; border-radius:6px; font-weight:700; font-size:11px; cursor:pointer;">📋</button>
+                             </div>`
+                        ).join('')}
+                    </div>
+                </div>
+            </div>`;
+        }
+        document.getElementById('audit-comparison-details').innerHTML = htmlComparison;
+
+        renderAuditTable(data.userExcelRows);
+    }
+
+    function renderAuditTable(rows) {
+        const container = document.getElementById('audit-results-container');
+        if(!rows || rows.length === 0) {
+            container.innerHTML = "<div style='text-align:center; padding:20px; color:var(--text-sec);'>No hay registros en la lista.</div>";
+            return;
+        }
+
+        let html = `<div style="background:var(--surface); border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,0.03); border:1px solid var(--border); overflow:hidden;">`;
+        rows.forEach((r, idx) => {
+            const totalRow = r.basePrice + r.bonus + (r.otherBonus || 0);
+            const isOtherUser = (datosAuditoriaRender && r.name !== datosAuditoriaRender.nombre);
+            const borderBottom = idx < rows.length - 1 ? 'border-bottom:1px solid var(--border);' : '';
+            const rowBg = isOtherUser ? 'var(--bg-sec)' : 'var(--surface)';
+
+            html += `
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 10px; background:${rowBg}; ${borderBottom}">
+                    <div style="display:flex; flex-direction:column; gap:2px;">
+                        <div style="font-weight:700; font-family:monospace; font-size:13px; color:var(--text-main);">
+                            ${r.codigo || 'BONO / MANUAL'}
+                        </div>
+                        <div style="font-size:11px; color:var(--text-sec); font-weight:600;">
+                            ${r.dateStr || 'S/F'} 
+                            ${r.bonus > 0 ? `<span style="color:var(--accent);">• Bono S/.${r.bonus}</span>` : ''}
+                            ${r.otherBonus > 0 ? `<span style="color:var(--text-warn);">• Otros bonos S/.${r.otherBonus}</span>` : ''}
+                            ${isOtherUser ? `<br><b style="color:var(--text-sec); background:var(--border); padding:2px 4px; border-radius:4px; margin-top:2px; display:inline-block;">👤 ${r.name}</b>` : ''}
+                        </div>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <div style="font-weight:800; color:var(--success); font-size:13px;">S/.${totalRow.toFixed(2)}</div>
+                        ${r.codigo ? `<button onclick="copiarCodigo('${r.codigo}')" aria-label="Copiar código" style="background:var(--bg); border:none; border-radius:6px; padding:6px 8px; cursor:pointer; font-size:12px; font-weight:700; color:var(--accent);">📋</button>` : ''}
+                    </div>
+                </div>
+            `;
+        });
+        html += `</div>`;
+        container.innerHTML = html;
+    }
+
+    function filterAuditTable() {
+        const term = document.getElementById('audit-search-input').value.toUpperCase();
+        
+        if(!term) {
+            renderAuditTable(datosAuditoriaRender.userExcelRows);
+            return;
+        }
+
+        const filtered = datosAuditoriaRender.allExcelRows.filter(r => {
+            const code = r.codigo ? r.codigo.toUpperCase() : "";
+            const name = r.name ? r.name.toUpperCase() : "";
+            const date = r.dateStr ? r.dateStr.toUpperCase() : "";
+            
+            return code.includes(term) || name.includes(term) || date.includes(term);
+        });
+
+        renderAuditTable(filtered);
+    }
+</script>
+
+</body>
+</html>
